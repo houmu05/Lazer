@@ -31,6 +31,38 @@ Future<void> _ready(LanRemoteController remote) async {
   expect(remote.error, isNull);
 }
 
+/// Shared setup for the security-surface regressions below. Probes use an
+/// unknown `action`, so `LanRemoteController.command` falls through its switch
+/// without changing playback, volume or the focused input field.
+class _RemoteFixture {
+  _RemoteFixture(this.state, this.remote, this.client, this.uri);
+
+  final AppState state;
+  final LanRemoteController remote;
+  final HttpClient client;
+  final Uri uri;
+
+  void close() {
+    client.close(force: true);
+    remote.dispose();
+    state.dispose();
+  }
+}
+
+Future<_RemoteFixture> _startLoopbackRemote() async {
+  HttpOverrides.global = null;
+  final state = AppState()..surface = AppSurface.tv;
+  final remote = LanRemoteController(
+    state,
+    bindAddress: InternetAddress.loopbackIPv4,
+  );
+  final client = HttpClient();
+  await remote.initialize();
+  await remote.setEnabled(true);
+  await _ready(remote);
+  return _RemoteFixture(state, remote, client, Uri.parse(remote.urls.single));
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   setUp(() => SharedPreferences.setMockInitialValues({}));
@@ -87,6 +119,122 @@ void main() {
       expect(remote.urls, isEmpty);
     },
   );
+
+  test(
+    'documents that /command accepts a request without an Origin header',
+    () async {
+      final f = await _startLoopbackRemote();
+      addTearDown(f.close);
+      final double volumeBefore = f.state.volume;
+      // A missing Origin is still allowed: non-browser clients legitimately
+      // omit it, and the token is what authenticates. Origin is a browser-CSRF
+      // mitigation, now applied to every endpoint, with expected values built
+      // from the server's own bound port rather than the Host header.
+      final request = await f.client.postUrl(f.uri.replace(path: '/command'));
+      request.headers.contentType = ContentType.json;
+      request.write(jsonEncode(<String, Object?>{'action': '__probe_noop__'}));
+      final response = await request.close();
+      expect(response.statusCode, HttpStatus.ok);
+      await response.drain<void>();
+      expect(
+        f.state.volume,
+        volumeBefore,
+        reason: 'an unknown action must not mutate playback state',
+      );
+    },
+  );
+
+  test('rejects a cross-site Origin on every endpoint', () async {
+    final f = await _startLoopbackRemote();
+    addTearDown(f.close);
+    for (final String path in <String>['/', '/state', '/command']) {
+      final bool isPost = path == '/command';
+      final HttpClientRequest request = await (isPost
+          ? f.client.postUrl(f.uri.replace(path: path))
+          : f.client.getUrl(f.uri.replace(path: path)));
+      request.headers.set('origin', 'http://unrelated.example');
+      if (isPost) {
+        request.headers.contentType = ContentType.json;
+        request.write(jsonEncode(<String, Object?>{'action': '__probe_noop__'}));
+      }
+      final HttpClientResponse response = await request.close();
+      expect(
+        response.statusCode,
+        HttpStatus.forbidden,
+        reason: '$path must not answer a foreign Origin',
+      );
+      await response.drain<void>();
+    }
+  });
+
+  test('accepts the pairing token in an Authorization header', () async {
+    final f = await _startLoopbackRemote();
+    addTearDown(f.close);
+    final String token = f.uri.queryParameters['token']!;
+    final HttpClientRequest request = await f.client.postUrl(
+      f.uri.replace(path: '/command', query: ''),
+    );
+    request.headers.contentType = ContentType.json;
+    request.headers.set(HttpHeaders.authorizationHeader, 'Bearer $token');
+    request.headers.set('origin', f.uri.origin);
+    request.write(jsonEncode(<String, Object?>{'action': '__probe_noop__'}));
+    final HttpClientResponse response = await request.close();
+    expect(
+      response.statusCode,
+      HttpStatus.ok,
+      reason: 'the browser page no longer puts the token in polling URLs',
+    );
+    await response.drain<void>();
+  });
+
+  test('rejects a forged Host that matches a cross-site Origin', () async {
+    final f = await _startLoopbackRemote();
+    addTearDown(f.close);
+    final HttpClientRequest request = await f.client.postUrl(
+      f.uri.replace(path: '/command'),
+    );
+    request.headers.contentType = ContentType.json;
+    // The old check compared Origin against "http://" + the client-supplied
+    // Host header. Spoofing both made a foreign page look same-origin.
+    request.headers.set('origin', 'http://unrelated.example');
+    request.headers.set(HttpHeaders.hostHeader, 'unrelated.example');
+    request.write(jsonEncode(<String, Object?>{'action': '__probe_noop__'}));
+    final HttpClientResponse response = await request.close();
+    expect(response.statusCode, HttpStatus.forbidden);
+    await response.drain<void>();
+  });
+
+  test('only LAN peers may reach the remote', () {
+    bool allowed(String value) =>
+        LanRemoteController.isAllowedPeer(InternetAddress(value));
+    expect(allowed('127.0.0.1'), isTrue);
+    expect(allowed('10.1.2.3'), isTrue);
+    expect(allowed('172.16.0.1'), isTrue);
+    expect(allowed('172.31.255.254'), isTrue);
+    expect(allowed('192.168.1.7'), isTrue);
+    expect(allowed('169.254.3.4'), isTrue);
+    expect(allowed('fc00::1'), isTrue);
+    expect(allowed('fe80::1'), isTrue);
+    expect(allowed('8.8.8.8'), isFalse);
+    expect(allowed('172.32.0.1'), isFalse);
+    expect(allowed('203.0.113.1'), isFalse);
+    expect(allowed('2001:4860:4860::8888'), isFalse);
+  });
+
+  test('sets the documented security response headers', () async {
+    final f = await _startLoopbackRemote();
+    addTearDown(f.close);
+    final response = await (await f.client.getUrl(f.uri)).close();
+    expect(response.statusCode, HttpStatus.ok);
+    expect(response.headers.value('cache-control'), 'no-store');
+    expect(response.headers.value('x-content-type-options'), 'nosniff');
+    expect(response.headers.value('referrer-policy'), 'no-referrer');
+    final String? csp = response.headers.value('content-security-policy');
+    expect(csp, isNotNull);
+    expect(csp, contains("frame-ancestors 'none'"));
+    expect(csp, contains("default-src 'self'"));
+    await response.drain<void>();
+  });
 
   test('restarts after TV mode changes during address discovery', () async {
     HttpOverrides.global = null;

@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -32,6 +33,10 @@ class LanRemoteController extends ChangeNotifier {
   String? error;
   String _token = '';
   List<String> urls = const [];
+
+  /// Origins the server itself published. Built from the bound port, never
+  /// from a client-supplied Host header.
+  Set<String> _allowedOrigins = const <String>{};
   int? get port => _server?.port;
   bool get running => _server != null;
   bool get _active =>
@@ -67,6 +72,7 @@ class LanRemoteController extends ChangeNotifier {
       final server = _server;
       _server = null;
       urls = const [];
+      _allowedOrigins = const <String>{};
       unawaited(server?.close(force: true));
       if (server != null) notifyListeners();
     } else if (_server == null && !_starting && error == null) {
@@ -98,9 +104,20 @@ class LanRemoteController extends ChangeNotifier {
         for (final address in addresses)
           'http://${address.address}:${server.port}/?token=$_token',
       ];
+      _allowedOrigins = <String>{
+        for (final String url in urls) Uri.parse(url).origin,
+        // A browser opened through localhost must work even when the shown
+        // URLs use the LAN address. Port comes from the server, not the Host
+        // header, so a forged Host cannot widen this set.
+        'http://127.0.0.1:${server.port}',
+        'http://localhost:${server.port}',
+        'http://[::1]:${server.port}',
+      };
     } catch (e) {
       final server = _server;
       _server = null;
+      urls = const [];
+      _allowedOrigins = const <String>{};
       await server?.close(force: true);
       error = '无法启动遥控器：$e';
     } finally {
@@ -142,6 +159,65 @@ class LanRemoteController extends ChangeNotifier {
     };
   }
 
+  /// Whether [address] may reach the remote at all. Loopback, RFC1918 private
+  /// IPv4, link-local and IPv6 unique-local addresses are LAN peers; a public
+  /// route is refused even when it somehow holds a valid token. The server
+  /// binds to every interface so a phone on the LAN can connect, which is why
+  /// this check has to live on each request rather than on the bind address.
+  @visibleForTesting
+  static bool isAllowedPeer(InternetAddress address) {
+    if (address.isLoopback) return true;
+    final String host = address.address.toLowerCase();
+    if (address.type == InternetAddressType.IPv6) {
+      if (host.startsWith('fc') || host.startsWith('fd')) return true;
+      if (host.startsWith('fe80')) return true;
+      // IPv4-mapped IPv6, e.g. ::ffff:192.168.1.7
+      if (host.startsWith('::ffff:')) {
+        return _isPrivateIPv4(host.substring(host.lastIndexOf(':') + 1));
+      }
+      return false;
+    }
+    return _isPrivateIPv4(host);
+  }
+
+  static bool _isPrivateIPv4(String host) {
+    final List<String> parts = host.split('.');
+    if (parts.length != 4) return false;
+    final List<int?> octets = parts.map(int.tryParse).toList();
+    if (octets.any((int? o) => o == null || o < 0 || o > 255)) return false;
+    final int a = octets[0]!;
+    final int b = octets[1]!;
+    if (a == 10) return true;
+    if (a == 172 && b >= 16 && b <= 31) return true;
+    if (a == 192 && b == 168) return true;
+    if (a == 169 && b == 254) return true;
+    return false;
+  }
+
+  /// Origin is a browser-CSRF mitigation, not authentication: non-browser
+  /// clients legitimately omit it. Expected values come from [_allowedOrigins],
+  /// which the server builds from its own bound port.
+  bool _originAllowed(HttpRequest request) {
+    final String? origin = request.headers.value('origin');
+    return origin == null || _allowedOrigins.contains(origin);
+  }
+
+  /// The pairing URL still carries the token for legacy links, but the remote
+  /// page clears its address bar and sends the token in an Authorization
+  /// header thereafter, so polling no longer repeats it in a request line.
+  bool _tokenPresent(HttpRequest request) {
+    final String? authorization = request.headers.value(
+      HttpHeaders.authorizationHeader,
+    );
+    const String prefix = 'Bearer ';
+    if (authorization != null &&
+        authorization.startsWith(prefix) &&
+        authorization.substring(prefix.length) == _token) {
+      return true;
+    }
+    return request.uri.queryParameters['token'] == _token;
+  }
+
   Future<void> _handle(HttpRequest request) async {
     final response = request.response;
     response.headers.set('Cache-Control', 'no-store');
@@ -152,9 +228,12 @@ class LanRemoteController extends ChangeNotifier {
       "default-src 'self'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; frame-ancestors 'none'",
     );
     try {
-      if (!enabled ||
-          !_active ||
-          request.uri.queryParameters['token'] != _token) {
+      final InternetAddress? peer = request.connectionInfo?.remoteAddress;
+      if (!enabled || !_active) {
+        response.statusCode = HttpStatus.forbidden;
+      } else if (peer != null && !isAllowedPeer(peer)) {
+        response.statusCode = HttpStatus.forbidden;
+      } else if (!_originAllowed(request) || !_tokenPresent(request)) {
         response.statusCode = HttpStatus.forbidden;
       } else if (request.method == 'GET' && request.uri.path == '/') {
         response.headers.contentType = ContentType.html;
@@ -163,28 +242,20 @@ class LanRemoteController extends ChangeNotifier {
         response.headers.contentType = ContentType.json;
         response.write(jsonEncode(snapshot));
       } else if (request.method == 'POST' && request.uri.path == '/command') {
-        // A token grants control, but another web page must never issue commands.
-        final origin = request.headers.value('origin');
-        if (origin != null &&
-            origin !=
-                'http://${request.headers.value(HttpHeaders.hostHeader)}') {
-          response.statusCode = HttpStatus.forbidden;
-        } else {
-          final bytes = <int>[];
-          await for (final chunk in request.timeout(
-            const Duration(seconds: 5),
-          )) {
-            bytes.addAll(chunk);
-            if (bytes.length > 16384) {
-              throw const FormatException('Request too large');
-            }
+        final bytes = <int>[];
+        await for (final chunk in request.timeout(
+          const Duration(seconds: 5),
+        )) {
+          bytes.addAll(chunk);
+          if (bytes.length > 16384) {
+            throw const FormatException('Request too large');
           }
-          final body = jsonDecode(utf8.decode(bytes));
-          if (body is! Map<String, dynamic>) throw const FormatException();
-          await command(body);
-          response.headers.contentType = ContentType.json;
-          response.write(jsonEncode(snapshot));
         }
+        final Object? body = jsonDecode(utf8.decode(bytes));
+        if (body is! Map<String, dynamic>) throw const FormatException();
+        await command(body);
+        response.headers.contentType = ContentType.json;
+        response.write(jsonEncode(snapshot));
       } else {
         response.statusCode = HttpStatus.notFound;
       }
@@ -368,4 +439,4 @@ const _remoteHtml = r'''<!doctype html><html lang="zh-CN"><meta charset="utf-8">
 <div class="row"><button data-key="back">返回</button></div><div class="row"><button data-action="previous">上一首</button><button data-action="play" id="play">播放 / 暂停</button><button data-action="next">下一首</button></div>
 <label>音量<input id="volume" type="range" min="0" max="1" step="0.02"></label>
 <section id="editor" hidden><h3>文字输入</h3><textarea id="text" rows="3" placeholder="在此输入文字"></textarea><div class="row"><button id="send">发送文字</button><button data-action="submit">确认输入</button></div></section>
-<script>const token=new URLSearchParams(location.search).get('token'),q='?token='+encodeURIComponent(token),$=id=>document.getElementById(id);let busy=false;async function send(body){try{const r=await fetch('/command'+q,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});if(!r.ok)throw Error();render(await r.json())}catch(e){$('status').textContent='连接中断，请检查大屏上的地址'}}function render(s){$('song').textContent=s.title;$('status').textContent=s.artist||'已连接';$('play').textContent=s.playing?'暂停':'播放';$('editor').hidden=!s.input;if(document.activeElement!==$('text')){$('text').value=s.text;$('text').placeholder=s.secret?'输入内容不会回显在遥控器':'在此输入文字'}if(document.activeElement!==$('volume'))$('volume').value=s.volume}document.querySelectorAll('[data-key]').forEach(b=>b.onclick=()=>send({action:'key',key:b.dataset.key}));document.querySelectorAll('[data-action]').forEach(b=>b.onclick=()=>send({action:b.dataset.action,...(b.dataset.action==='submit'?{text:$('text').value}:{})}));$('send').onclick=()=>send({action:'text',text:$('text').value});$('volume').onchange=()=>send({action:'volume',value:Number($('volume').value)});document.onkeydown=e=>{if(['TEXTAREA','INPUT'].includes(e.target.tagName))return;const key={ArrowUp:'up',ArrowDown:'down',ArrowLeft:'left',ArrowRight:'right',Enter:'select',Escape:'back'}[e.key];if(key){e.preventDefault();send({action:'key',key})}};async function poll(){if(busy)return;busy=true;try{const r=await fetch('/state'+q);if(!r.ok)throw Error();render(await r.json())}catch(e){$('status').textContent='连接中断，请检查大屏上的地址'}finally{busy=false}}poll();setInterval(poll,1200);</script></html>''';
+<script>const token=new URLSearchParams(location.search).get('token')||'',$=id=>document.getElementById(id);let busy=false;if(token)history.replaceState(null,'',location.pathname);const auth={'Authorization':'Bearer '+token};async function send(body){try{const r=await fetch('/command',{method:'POST',headers:{'Content-Type':'application/json',...auth},body:JSON.stringify(body)});if(!r.ok)throw Error();render(await r.json())}catch(e){$('status').textContent='连接中断，请检查大屏上的地址'}}function render(s){$('song').textContent=s.title;$('status').textContent=s.artist||'已连接';$('play').textContent=s.playing?'暂停':'播放';$('editor').hidden=!s.input;if(document.activeElement!==$('text')){$('text').value=s.text;$('text').placeholder=s.secret?'输入内容不会回显在遥控器':'在此输入文字'}if(document.activeElement!==$('volume'))$('volume').value=s.volume}document.querySelectorAll('[data-key]').forEach(b=>b.onclick=()=>send({action:'key',key:b.dataset.key}));document.querySelectorAll('[data-action]').forEach(b=>b.onclick=()=>send({action:b.dataset.action,...(b.dataset.action==='submit'?{text:$('text').value}:{})}));$('send').onclick=()=>send({action:'text',text:$('text').value});$('volume').onchange=()=>send({action:'volume',value:Number($('volume').value)});document.onkeydown=e=>{if(['TEXTAREA','INPUT'].includes(e.target.tagName))return;const key={ArrowUp:'up',ArrowDown:'down',ArrowLeft:'left',ArrowRight:'right',Enter:'select',Escape:'back'}[e.key];if(key){e.preventDefault();send({action:'key',key})}};async function poll(){if(busy)return;busy=true;try{const r=await fetch('/state',{headers:auth});if(!r.ok)throw Error();render(await r.json())}catch(e){$('status').textContent='连接中断，请检查大屏上的地址'}finally{busy=false}}poll();setInterval(poll,1200);</script></html>''';
