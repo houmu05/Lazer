@@ -66,7 +66,7 @@ export PATH="$tools:$PATH"
   --executable "$appdir/usr/bin/lazer_nextgen" \
   --library "$mpv" \
   --desktop-file "$repo/ci/linux/lazer.desktop" \
-  --icon-file "$repo/assets/app_icon.png" \
+  --icon-file "$repo/assets/app_icon_256.png" \
   --custom-apprun "$repo/ci/linux/AppRun" \
   --plugin gtk --output appimage
 chmod +x "$OUTPUT"
