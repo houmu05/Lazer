@@ -105,7 +105,7 @@ void main() {
         expect(calls, hasLength(1));
         expect(calls.single.method, 'openUrl');
         expect(calls.single.arguments, {
-          'url': 'https://github.com/chuxuehaocai/Lazer',
+          'url': 'https://github.com/houmu05/Lazer',
         });
         expect(tester.takeException(), isNull);
       },
@@ -133,7 +133,7 @@ void main() {
       await tester.tap(_projectLink);
       await tester.pump();
       expect(
-        find.text('无法打开浏览器，请手动访问 https://github.com/chuxuehaocai/Lazer'),
+        find.text('无法打开浏览器，请手动访问 https://github.com/houmu05/Lazer'),
         findsOneWidget,
       );
       expect(tester.takeException(), isNull);

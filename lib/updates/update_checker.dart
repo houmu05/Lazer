@@ -55,7 +55,7 @@ class AppRelease {
       notes: rawNotes is String ? rawNotes.trim() : '',
       url: rawUrl is String && rawUrl.trim().isNotEmpty
           ? rawUrl.trim()
-          : '${UpdateChecker.releasesRepositoryUrl}/releases/tag/${rawTag.trim()}',
+          : '${UpdateChecker.repositoryUrl}/releases/tag/${rawTag.trim()}',
       prerelease: json['prerelease'] == true || version.isPreRelease,
       publishedAt: DateTime.tryParse('${json['published_at'] ?? ''}'),
     );
@@ -89,16 +89,11 @@ class UpdateChecker {
              'https://api.github.com/repos/houmu05/Lazer/releases?per_page=30',
            );
 
-  /// The upstream project's home page, shown on the About settings page. This
-  /// deliberately stays on the original repository: the fork credits it.
-  static const String repositoryUrl = 'https://github.com/chuxuehaocai/Lazer';
-
-  /// Where THIS fork publishes its builds (see `docs/HANDOVER.md` section 6).
-  /// Update checks and the fallback release URL must point here, never at the
-  /// upstream repository: that lineage lacks the AGPL relicense, the platform
-  /// trim and the album parsing fixes shipped by this fork.
-  static const String releasesRepositoryUrl =
-      'https://github.com/houmu05/Lazer';
+  /// This fork's repository. The About page and the update check both point
+  /// here: the upstream lineage lacks the AGPL relicense, the platform trim and
+  /// the album parsing fixes shipped by this fork, so an upstream release must
+  /// never be offered as an update.
+  static const String repositoryUrl = 'https://github.com/houmu05/Lazer';
 
   final Future<http.Response> Function(Uri uri) _fetch;
   final Uri endpoint;

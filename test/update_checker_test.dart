@@ -28,8 +28,7 @@ Map<String, Object?> _release(
   'tag_name': tag,
   'name': 'Lazer $tag',
   'body': body ?? 'Changes in $tag',
-  'html_url':
-      '${UpdateChecker.releasesRepositoryUrl}/releases/tag/$tag',
+  'html_url': '${UpdateChecker.repositoryUrl}/releases/tag/$tag',
   'prerelease': prerelease,
   'draft': draft,
   'published_at': '2026-10-20T12:00:00Z',
@@ -81,7 +80,7 @@ void main() {
       expect(checker.endpoint.queryParameters['per_page'], '30');
       expect(checker.endpoint.toString(), isNot(contains('chuxuehaocai')));
       expect(
-        UpdateChecker.releasesRepositoryUrl,
+        UpdateChecker.repositoryUrl,
         'https://github.com/houmu05/Lazer',
       );
     });
@@ -96,21 +95,18 @@ void main() {
       });
       expect(
         release?.url,
-        '${UpdateChecker.releasesRepositoryUrl}/releases/tag/v2.1.0',
+        '${UpdateChecker.repositoryUrl}/releases/tag/v2.1.0',
       );
     });
 
-    test('the About page still links to the upstream project', () {
-      // Deliberately different from the release source: the fork credits the
-      // original repository on its About page (settings_page.dart:852).
+    test('the About page and the update check share one repository', () {
+      // settings_page.dart renders this value on the About row, and the update
+      // check reads releases from the same fork. They must never diverge.
       expect(
         UpdateChecker.repositoryUrl,
-        'https://github.com/chuxuehaocai/Lazer',
+        'https://github.com/houmu05/Lazer',
       );
-      expect(
-        UpdateChecker.repositoryUrl,
-        isNot(UpdateChecker.releasesRepositoryUrl),
-      );
+      expect(UpdateChecker.repositoryUrl, isNot(contains('chuxuehaocai')));
     });
 
     test('offers the newest release newer than a pre-release build', () async {
