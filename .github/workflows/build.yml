@@ -181,6 +181,9 @@ jobs:
   linux:
     name: Linux AppImage (${{ matrix.arch }})
     needs: check
+    # While the Windows album fix is under test, packaging runs Windows only.
+    # Set the repository variable LAZER_BUILD_ALL_PLATFORMS=true to re-enable.
+    if: vars.LAZER_BUILD_ALL_PLATFORMS == 'true'
     strategy:
       fail-fast: false
       matrix:
@@ -280,6 +283,7 @@ jobs:
   android:
     name: Android APK
     needs: check
+    if: vars.LAZER_BUILD_ALL_PLATFORMS == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     env:
@@ -392,7 +396,8 @@ jobs:
 
   release:
     name: Publish GitHub Release
-    if: startsWith(github.ref, 'refs/tags/v')
+    # A tag must never publish a set that is missing Linux or Android.
+    if: startsWith(github.ref, 'refs/tags/v') && vars.LAZER_BUILD_ALL_PLATFORMS == 'true'
     needs: [check, windows, linux, android]
     runs-on: ubuntu-22.04
     timeout-minutes: 30
