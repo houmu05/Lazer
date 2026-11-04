@@ -28,7 +28,8 @@ Map<String, Object?> _release(
   'tag_name': tag,
   'name': 'Lazer $tag',
   'body': body ?? 'Changes in $tag',
-  'html_url': 'https://github.com/chuxuehaocai/Lazer/releases/tag/$tag',
+  'html_url':
+      '${UpdateChecker.releasesRepositoryUrl}/releases/tag/$tag',
   'prerelease': prerelease,
   'draft': draft,
   'published_at': '2026-10-20T12:00:00Z',
@@ -71,6 +72,47 @@ void main() {
   });
 
   group('update checker', () {
+    test('checks releases on this fork, not the upstream repository', () {
+      final UpdateChecker checker = UpdateChecker(
+        fetch: (Uri _) async => _releases(<Map<String, Object?>>[]),
+      );
+      expect(checker.endpoint.host, 'api.github.com');
+      expect(checker.endpoint.path, '/repos/houmu05/Lazer/releases');
+      expect(checker.endpoint.queryParameters['per_page'], '30');
+      expect(checker.endpoint.toString(), isNot(contains('chuxuehaocai')));
+      expect(
+        UpdateChecker.releasesRepositoryUrl,
+        'https://github.com/houmu05/Lazer',
+      );
+    });
+
+    test('a release without html_url falls back to this fork', () {
+      final AppRelease? release = AppRelease.fromJson(<String, dynamic>{
+        'tag_name': 'v2.1.0',
+        'name': 'Lazer v2.1.0',
+        'body': 'notes',
+        'prerelease': false,
+        'draft': false,
+      });
+      expect(
+        release?.url,
+        '${UpdateChecker.releasesRepositoryUrl}/releases/tag/v2.1.0',
+      );
+    });
+
+    test('the About page still links to the upstream project', () {
+      // Deliberately different from the release source: the fork credits the
+      // original repository on its About page (settings_page.dart:852).
+      expect(
+        UpdateChecker.repositoryUrl,
+        'https://github.com/chuxuehaocai/Lazer',
+      );
+      expect(
+        UpdateChecker.repositoryUrl,
+        isNot(UpdateChecker.releasesRepositoryUrl),
+      );
+    });
+
     test('offers the newest release newer than a pre-release build', () async {
       final UpdateChecker checker = UpdateChecker(
         fetch: (Uri _) async => _releases(<Map<String, Object?>>[
