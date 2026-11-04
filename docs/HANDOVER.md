@@ -9,7 +9,7 @@
 分支 `nextgen` 是 Flutter 重写的 2.0 客户端（网易云音乐第三方客户端，WEAPI/EAPI 自带、
 原生 Hi-Fi 音频引擎）。上游的 `master` 是 Kotlin 的 1.5 老客户端，本 fork 不维护它。
 
-当前 fork 相对上游 `nextgen`（`7c56023`）多出 11 个提交：
+相对上游 `nextgen`（`7c56023`），远端 fork 的 `nextgen` 与 `review/2026-11-04` 都指向下面这串提交的最新一条：
 
 | 提交 | 内容 |
 | --- | --- |
@@ -23,7 +23,13 @@
 | `dd37c52` | CI：补 256px 图标（linuxdeploy 不接受 1024） |
 | `711f73a` | **修复 `/album/sublist` 解析**（`data`/`hasMore`，见 §5） |
 | `7a1b041` | CI：暂时只打包 Windows（仓库变量控制，见 §6） |
-| `d5b40e5` | 接手文档：`docs/HANDOVER.md`、`TODO.md`、`KNOWN-ISSUES.md` |
+| 最新一条（`git log -1`） | 接手文档：`docs/HANDOVER.md`、`TODO.md`、`KNOWN-ISSUES.md`，含 2026-11-04 的勘误修正 |
+ 
+> **分支陷阱（先看这个）**：本 fork 的代码在远端 `fork`（`git remote -v`，指向 `houmu05/Lazer`）的
+> `nextgen` 上。本地 clone 的 `nextgen` 默认跟踪 `origin/nextgen`（上游），通常仍停在 `7c56023`；
+> 直接 `git checkout nextgen` 会退回上游旧代码。接手时先 `git fetch fork`，再
+> `git checkout -B nextgen fork/nextgen`，或直接用与它同提交的 `review/2026-11-04`。
+> 用 `git ls-remote --heads fork` 确认远端实际指向，不要相信本地分支名。
 
 ## 2. 先读什么
 
@@ -45,6 +51,11 @@ flutter test --no-pub            # 基线：1065 passed / 0 failed（约 4 分�
 ```
 
 不要改 `pubspec.lock` 去迁就旧 SDK；CI 里 7 处 `--enforce-lockfile`。
+
+数字口径：审查当时的测试基线是 **1056**（静态扫描 936 个 `test()`/`testWidgets()` 调用点）；
+后续新增 9 个用例（收藏专辑 3 + liked 1 + 资料库 widget 1 + `/album/sublist` 解析 4），
+当前基线是 **1065**（945 个调用点）。`docs/reviews/2026-11-04-code-review.md` 里的 1056 是审查
+当时的历史快照，不是现在的数字。
 
 ## 4. 当前功能边界
 
@@ -89,8 +100,9 @@ CI：`.github/workflows/build.yml`，job = `check` + `windows` + `linux` + `andr
 ## 7. 已知坑（操作层面）
 
 - 本机没有 Windows/Android 工具链；Windows 包只能由 CI 出，Linux 包需要 GTK/clang/libmpv 等系统依赖。
-- fork 的 `nextgen` 已被快进到这里的分支内容，和上游 `7c56023` 分叉；
-  合并上游会因删除 `ios/`、`macos/` 与文档改写而冲突。同步策略见 `TODO.md`。
+- fork 与上游已分叉：远端 `fork/nextgen` 是本文档所在提交，上游是 `7c56023`；
+  本地 `nextgen` 可能还跟踪着 `origin/nextgen`（见 §1 的分支陷阱）。合并上游会因删除
+  `ios/`、`macos/` 与文档改写而冲突，同步策略见 `TODO.md`。
 - Windows 测试的是新包还是旧包：看文件名旁的 commit/时间，或进设置页 About 看构建信息。
 - 缓存位置（Windows）：`%LOCALAPPDATA%\dev.naominet\lazer_nextgen\lazer_cache_v1`（排查脏缓存直接删）。
 

@@ -89,6 +89,10 @@ flutter test --no-pub --reporter expanded
 
 日志：`build/review/analyze.log`、`build/review/test.log`（`/build/` 已被 gitignore）。
 
+> 数字说明：上表是**审查当时**的基线（1056 passed）。此后新增了 9 个用例
+> （收藏专辑 3 + liked 1 + 资料库 widget 1 + `/album/sublist` 解析 4），
+> 当前基线是 **1065 passed**，以 `docs/HANDOVER.md` §3 为准。
+
 ## 5. 候选修复（只列不修，按 ROI 排序）
 
 1. 文档漂移一次清（§3.12、§3.13），并给 CI 加 `tool/check_i18n.py` 与 golden 断言（§3.11）——零业务风险、立刻可验证。
@@ -131,4 +135,4 @@ grep -rn "uac2\|UAC2" --include='*.kt' --include='*.dart' lib android   # 0
 | `bash -n tool/check_toolchain.sh` | 通过 |
 | `LICENSE` 完整性 | 677 行；`tail -n +17` 与 AGPL 正本 `cmp` 一致；无 MIT 残留（`grep -nw MIT` 空） |
 | 改动后 `flutter analyze --no-pub` | 0 issues |
-| 改动后 `flutter test --no-pub` | 1056 passed / 0 failed |
+| 改动后 `flutter test --no-pub` | 1056 passed / 0 failed（当时的基线；现为 1065） |

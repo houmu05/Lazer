@@ -32,8 +32,10 @@
 - [ ] **Android 正式签名**：配置 `ANDROID_KEYSTORE_BASE64`、`ANDROID_KEYSTORE_PASSWORD`、
       `ANDROID_KEY_ALIAS`、`ANDROID_KEY_PASSWORD` 四个 secrets；
       否则 APK 永远是 debug 签名（CI 有 warning）。
-- [ ] **上游同步策略**（需人决定）：fork 的 `nextgen` 已快进到 `7a1b041`，与上游 `7c56023` 分叉；
-      合并会因删除 `ios/`/`macos/` 与文档改写冲突。选项：
+- [ ] **上游同步策略**（需人决定）：远端 `fork/nextgen` 与 `review/2026-11-04` 指向本 fork 最新提交，
+      上游仍是 `7c56023`；注意本地 `nextgen` 默认跟踪 `origin/nextgen`（上游），
+      直接用它会拿到旧代码（见 `docs/HANDOVER.md` §1 分支陷阱）。
+      合并上游会因删除 `ios/`/`macos/` 与文档改写冲突。选项：
       (a) 长期维护 fork，定期 `git rebase`/`merge -X ours` 手工过；
       (b) 把本轮改动整理成上游 PR（专辑功能 + 许可 + CI 修复），上游合并后回退 fork；
       (c) 只保留 `review/2026-11-04` 分支，`nextgen` 强制回退到上游。

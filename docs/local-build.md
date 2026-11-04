@@ -57,7 +57,8 @@ Measured on WSL Debian 13 with this SDK:
 
 - `flutter pub get --enforce-lockfile` completes in about 42 s.
 - `flutter analyze --no-pub` prints `No issues found!` (0 issues).
-- `flutter test --no-pub` runs 1056 tests, all passing, in about 3 min 24 s.
+- `flutter test --no-pub` runs 1065 tests, all passing, in about 4 minutes
+  (the review-time snapshot was 1056 before the album work added nine cases).
 
 The suite runs headless and needs no display, so it works the same over SSH,
 in WSL without WSLg, and in CI. Treat a different issue or test count as a
