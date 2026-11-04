@@ -1266,7 +1266,10 @@ class Catalog {
         receivedCount: 0,
       );
     }
-    final String key = 'user-albums:v1:$_scope:$uid:$offset';
+    // v2: the first shipping parser read `albums`/`more`, but /album/sublist
+    // answers with `data`/`hasMore`; bump so the cached empty page cannot be
+    // served for the rest of its TTL.
+    final String key = 'user-albums:v2:$_scope:$uid:$offset';
     if (force) await _expire(key);
     return _cached<UserAlbumPage>(
       key,

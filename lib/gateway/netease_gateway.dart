@@ -618,7 +618,9 @@ class NeteaseGateway {
       '/album/sublist',
       <String, String>{'limit': limit.toString(), 'offset': offset.toString()},
     );
-    final dynamic raw = body['albums'];
+    // The live endpoint returns the page under `data` and flags it with
+    // `hasMore`; older payloads used `albums`/`more`, so accept both.
+    final dynamic raw = body['data'] ?? body['albums'];
     final List<GatewayAlbum> albums = raw is List
         ? raw
               .whereType<Map<String, dynamic>>()
@@ -627,8 +629,9 @@ class NeteaseGateway {
               .toList()
         : const <GatewayAlbum>[];
     final int count = (body['count'] as num?)?.toInt() ?? albums.length;
-    final bool more = body['more'] is bool
-        ? body['more'] as bool
+    final dynamic moreFlag = body['hasMore'] ?? body['more'];
+    final bool more = moreFlag is bool
+        ? moreFlag
         : offset + albums.length < count;
     return GatewayAlbumPage(albums: albums, more: more, count: count);
   }

@@ -221,6 +221,7 @@ class AppLibraryPage extends StatelessWidget {
                 if (state.signedIn &&
                     !state.libraryAlbumsLoading &&
                     state.libraryAlbums.isEmpty &&
+                    !state.libraryAlbumsMore &&
                     state.libraryAlbumsError == null)
                   SliverPadding(
                     padding: EdgeInsets.symmetric(horizontal: inset),
