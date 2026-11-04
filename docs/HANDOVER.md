@@ -1,7 +1,9 @@
 # 接手须知（Handover）
 
 写给下一个接手的人或 AI：这个仓库现在是什么状态、怎么跑、从哪儿继续。
-最后更新：2026-11-04。`nextgen` 与 `review/2026-11-04` 保持同一提交，以 `git log -1` 为准。
+最后更新：2026-11-04（`v0.1.0` 发布）。`nextgen` 与 `review/2026-11-04` 保持同一提交，
+以 `git log -1` 为准。**唯一工作副本是 WSL `/home/seele/workspace/Lazer`**，
+Windows 侧的副本已弃用（见 §9）。
 
 ## 1. 这是什么
 
@@ -23,7 +25,10 @@
 | `dd37c52` | CI：补 256px 图标（linuxdeploy 不接受 1024） |
 | `711f73a` | **修复 `/album/sublist` 解析**（`data`/`hasMore`，见 §5） |
 | `7a1b041` | CI：暂时只打包 Windows（仓库变量控制，见 §6） |
-| 最新一条（`git log -1`） | 接手文档：`docs/HANDOVER.md`、`TODO.md`、`KNOWN-ISSUES.md`，含 2026-11-04 的勘误修正 |
+| `6cc9876` | 更新检查改指本 fork（`houmu05/Lazer`） |
+| `5c99480` | LAN 遥控器安全硬化：限制 LAN 来源、Origin 改由服务端构造、令牌改走 `Authorization` 头 + 6 条回归 |
+| `b0ed292` | 删除冗余 import（CI analyzer 修复） |
+| 最新一条（`git log -1`） | 关于页与检查更新统一指向本 fork、`.gitignore` 补密钥规则、交接文档 |
  
 > **分支陷阱（先看这个）**：本 fork 的代码在远端 `fork`（`git remote -v`，指向 `houmu05/Lazer`）的
 > `nextgen` 上。本地 clone 的 `nextgen` 默认跟踪 `origin/nextgen`（上游），通常仍停在 `7c56023`；
@@ -52,6 +57,17 @@ flutter test --no-pub            # 基线：1065 passed / 0 failed（约 4 分�
 
 不要改 `pubspec.lock` 去迁就旧 SDK；CI 里 7 处 `--enforce-lockfile`。
 
+工作副本与工具链约定（2026-11-04 起）：
+
+- **唯一工作副本**：WSL `/home/seele/workspace/Lazer`。不再维护 Windows 副本。
+- Windows 侧只留构建产物与密钥备份；PowerShell 一律用 **PowerShell 7**（`pwsh` 7.6.9）。
+  Windows PowerShell 5.1 向 `pwsh -Command` 传含双引号的脚本时会剥离引号；
+  `-EncodedCommand` 会被安全策略拒绝，改用明文 `.ps1` + `pwsh -File`。
+- 便携 JDK（只为 `keytool`）：Windows 侧 `~/.workbuddy-ai/tools/jdk17/jdk-17.0.21+9`。
+- **受限会话可能禁止调用 `wsl.exe`**（安全策略黑名单，不可绕过）。此时只能通过
+  `\\wsl.localhost\Debian\home\seele\workspace\Lazer` 读写文件、用 Windows 的
+  `git -C` 操作仓库，**不能执行 WSL 内的 flutter/shell 命令**；这类命令请在 WSL 终端手动执行。
+
 数字口径：审查当时的测试基线是 **1056**（静态扫描 936 个 `test()`/`testWidgets()` 调用点）；
 后续新增 9 个用例（收藏专辑 3 + liked 1 + 资料库 widget 1 + `/album/sublist` 解析 4），
 当前基线是 **1065**（945 个调用点）。`docs/reviews/2026-11-04-code-review.md` 里的 1056 是审查
@@ -62,7 +78,7 @@ flutter test --no-pub            # 基线：1065 passed / 0 failed（约 4 分�
 - 平台：**Windows / Android / Linux**。macOS/iOS 目标已删除（暂无设备实测），
   `native/` 里的 CoreAudio/RemoteIO 后端源码保留但不再构建。
 - 资料库（Library）：本地音乐 + 歌单 + **收藏专辑**（本轮新增）+ 推荐歌单。
-- 全量打包目前被仓库变量关掉，只出 Windows 包（见 §6）。
+- 全量打包已恢复（`LAZER_BUILD_ALL_PLATFORMS=true`），四个产物齐全（见 §6）。
 
 ## 5. 关键接口契约（实测，勿凭记忆改）
 
@@ -85,17 +101,22 @@ flutter test --no-pub            # 基线：1065 passed / 0 failed（约 4 分�
 
 CI：`.github/workflows/build.yml`，job = `check` + `windows` + `linux` + `android` + `release`。
 
-- 当前 **只跑 `check` + `windows`**：`linux`、`android`、`release` 的 `if` 是
-  `vars.LAZER_BUILD_ALL_PLATFORMS == 'true'`。要恢复全量，在仓库
-  Settings → Secrets and variables → Actions → Variables 里把该变量设为 `true`。
+- 全量已恢复：仓库变量 `LAZER_BUILD_ALL_PLATFORMS=true` 已设置，`linux`、`android`、
+  `release` 的 `if` 因此成立。要临时回到只打 Windows，删除该变量或设为非 `true`。
 - 触发方式：推 `nextgen`（`on.push`）或 `gh workflow run build.yml --ref <branch> -R houmu05/Lazer`。
   fork 的 Actions 需要先在网页 Actions 页启用一次（若报 workflow 404 就是这个原因）。
 - Windows job 约 20–25 分钟，大头是每次现场编 FFmpeg（`native/lazer-audio/tools/build_dsd_ffmpeg.sh`）。
 - 产物：`Lazer-Windows-x86_64.zip`、两个 `Lazer-Linux-*.AppImage`、`Lazer-Android-universal.apk`；
   下载：`gh run download <run_id> -R houmu05/Lazer -D dist/ci`，每个包都有 `.sha256`。
-- Android 没有配 keystore secrets 时是 **debug 签名**（CI 日志有 warning），正式签名需要
-  `ANDROID_KEYSTORE_BASE64`、`ANDROID_KEYSTORE_PASSWORD`、`ANDROID_KEY_ALIAS`、`ANDROID_KEY_PASSWORD`。
-- 最近一次全量成功：run `41809995086`（head `711f73a`），Windows 包可直接用于测试。
+- Android 签名：**4 个 secrets 已配置**（`ANDROID_KEYSTORE_BASE64`、
+  `ANDROID_KEYSTORE_PASSWORD`、`ANDROID_KEY_ALIAS`、`ANDROID_KEY_PASSWORD`），
+  分支与 tag 构建都是正式签名。密钥原件在 `dist/android-signing/`
+  （`upload-keystore.jks`、`upload-keystore.jks.base64.txt`、`github-secrets.txt`），
+  **必须离线备份**：它是应用更新的信任根，丢失后已安装版本永远无法就地升级。
+  tag 构建缺 secrets 会直接失败（`build.yml:326-329`）。
+- 最近一次全量成功：run `41837109045`（head `b0ed292`，正式签名验证），4 个产物齐全。
+- 发布：打 `v*` tag 并推送 → `release` job 下载四个产物、校验桌面包内含原生引擎、
+  创建 GitHub Release。tag 名含 `-` 会被标为 prerelease。
 
 ## 7. 已知坑（操作层面）
 
@@ -105,6 +126,11 @@ CI：`.github/workflows/build.yml`，job = `check` + `windows` + `linux` + `andr
   `ios/`、`macos/` 与文档改写而冲突，同步策略见 `TODO.md`。
 - Windows 测试的是新包还是旧包：看文件名旁的 commit/时间，或进设置页 About 看构建信息。
 - 缓存位置（Windows）：`%LOCALAPPDATA%\dev.naominet\lazer_nextgen\lazer_cache_v1`（排查脏缓存直接删）。
+- **`wsl.exe` 可能被安全策略拦截**：受限会话里无法执行 WSL 命令，只能通过
+  `\\wsl.localhost\Debian\home\seele\workspace\Lazer` 读写文件、用 Windows `git -C`
+  操作仓库。要在 WSL 里跑 flutter/test，请在 WSL 终端执行。
+- **发布密钥只此一份**：`dist/android-signing/` 不进 git，CI 也不保管原件。
+  备份到离线介质；不要把 `.jks` 或 `github-secrets.txt` 贴进对话、日志或提交。
 
 ## 8. 测试与验证习惯
 
@@ -115,3 +141,25 @@ CI：`.github/workflows/build.yml`，job = `check` + `windows` + `linux` + `andr
   （`dart --packages=.dart_tool/package_config.json <脚本>`，脚本放 `build/diag/`），
   并用 grep 确认没有指向已删除路径（`macos/`、`ios/`、`ci/tests/` 之类）。
 - 日志与临时探针放 `build/review/`、`build/diag/`（均被 gitignore）。
+
+## 9. 2026-11-04 发布与工作副本迁移
+
+- **版本标签**：`v0.1.0`，本 fork 的首个发布标签。`pubspec.yaml` 里的
+  `2.0.0-beta.5.hotfix+7` 是沿用上游的版本号，未改。tag 不含 `-`，`release` job
+  按正式版发布；`docs/releases/` 没有 `v0.1.0.md`，notes 走 `--generate-notes`。
+- **工作副本**：从本次起只在 WSL `/home/seele/workspace/Lazer` 维护。
+  Windows `C:\Users\houmu\WorkBuddy AI\LAZER` 仅保留历史副本、构建产物与密钥备份，
+  不再更新，也不再与 WSL 双向同步。
+- **本轮安全修复**：`review/2026-11-04` 含 P1-1/P1-2（LAN 遥控器）、P1-4（更新源）
+  修复与 9 条回归测试。P1-3（会话 cookie 明文）仍未做：需要平台安全存储插件并
+  重新生成 `pubspec.lock`，而 CI 使用 `--enforce-lockfile`，属单独立项。
+- **`.gitignore`**：已补 `android/app/upload-keystore.jks` 与 `android/key.properties`。
+  此前 `docs/builds.md` 声称两者已忽略但实际没有，是真实缺陷（会导致私钥误提交）。
+- **链接口径**：关于页（`lib/ui/settings_page.dart`）与检查更新
+  （`lib/updates/update_checker.dart`）都指向 `https://github.com/houmu05/Lazer`，
+  不再指向上游；`test/about_project_link_test.dart` 与 `test/update_checker_test.dart`
+  已同步断言。
+- **未做**：`nextgen` 未改名为 `main`（用户决定保持）；`review` → `nextgen` 的合并
+  按用户计划在测试后进行。
+- **残余风险**（沿用安全评估）：LAN 遥控器首次配对 URL 仍含令牌、传输仍是明文 HTTP；
+  彻底解决需一次性配对码 + 本地 TLS。
