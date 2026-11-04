@@ -116,6 +116,15 @@ launching its EXE, and run `chmod +x` on a downloaded AppImage.
 
 More documentation: [build details](docs/builds.md) · [system media](docs/system-media.md) · [now playing](docs/now-playing.md) · [scheduled pause](docs/scheduled-pause.md) · [car head unit](docs/car-head-unit.md) · [large screen mode (Android TV)](docs/android-tv.md) · [QR sign-in](docs/login-qr.md) · [SMS sign-in](docs/login-sms.md) · [unified interface](docs/ui.md)
 
+## Project status and handover
+
+Only **Windows, Android and Linux** are maintained right now (macOS and iOS have no test devices and their targets are gone). This README speaks to listeners; for development, start here:
+
+- [docs/HANDOVER.md](docs/HANDOVER.md) — repository state, toolchain commands, API contracts, build and packaging flow, known traps.
+- [TODO.md](TODO.md) — prioritised next steps, each with acceptance criteria.
+- [KNOWN-ISSUES.md](KNOWN-ISSUES.md) — verified defects and risks with code locations or measured evidence.
+- [docs/reviews/2026-11-04-code-review.md](docs/reviews/2026-11-04-code-review.md) — architecture map and the full review.
+
 ## References and thanks
 
 - The protocol implementation references [API Enhanced](https://github.com/NeteaseCloudMusicApiEnhanced/api-enhanced).

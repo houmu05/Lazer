@@ -112,6 +112,16 @@ Windows 请完整解压后运行；AppImage 下载后先 `chmod +x`。
 
 更多说明书：[构建说明](docs/builds.md) · [系统媒体控件](docs/system-media.md) · [正在播放](docs/now-playing.md) · [定时停止](docs/scheduled-pause.md) · [车机形态](docs/car-head-unit.md) · [大屏幕模式（Android TV）](docs/android-tv.md) · [扫码登录](docs/login-qr.md) · [验证码登录](docs/login-sms.md) · [统一界面](docs/ui.md)
 
+## 开发状态与接手
+
+当前只维护 **Windows / Android / Linux** 三个平台（macOS、iOS 暂无设备实测，目标已移除）。
+这份文档面向使用者；接手开发请看：
+
+- [docs/HANDOVER.md](docs/HANDOVER.md) — 仓库状态、环境命令、接口契约、构建与打包流程、已知坑。
+- [TODO.md](TODO.md) — 下一步做什么，按优先级排好，每条带验收标准。
+- [KNOWN-ISSUES.md](KNOWN-ISSUES.md) — 已核实的缺陷与风险（附代码位置/实测证据）。
+- [docs/reviews/2026-11-04-code-review.md](docs/reviews/2026-11-04-code-review.md) — 架构地图与完整审查记录。
+
 ## 参考与致谢
 
 - 接口实现参考 [API Enhanced](https://github.com/NeteaseCloudMusicApiEnhanced/api-enhanced)。
