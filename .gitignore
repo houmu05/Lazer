@@ -54,3 +54,9 @@ app.*.map.json
 
 # Kotlin Gradle caches
 **/.kotlin/
+
+# Android release signing material. The keystore is the update trust root and
+# key.properties holds its password in clear text; docs/builds.md already
+# documents both as ignored, so keep the rules here in sync.
+/android/app/upload-keystore.jks
+/android/key.properties
