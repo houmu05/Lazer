@@ -4,10 +4,6 @@
 
 <h1 align="center">Lazer</h1>
 
-<h3 align="center">
-  交流群：<a href="https://qm.qq.com/q/JJJfE0QV00">神秘交流群 · 1063238023</a>
-</h3>
-
 <p align="center">
   <a href="https://qm.qq.com/q/JJJfE0QV00"><img alt="QQ 群：1063238023" src="https://img.shields.io/badge/QQ%E7%BE%A4-1063238023-12B7F5?style=for-the-badge&logo=tencentqq&logoColor=white"></a>
 </p>
@@ -21,7 +17,7 @@
 </p>
 
 <p align="center">
-  <b>一个用 Flutter 手写的网易云音乐客户端。</b><br>
+  <b>一个用 Flutter 写的网易云音乐客户端。</b><br>
   WEAPI / EAPI 就住在客户端里，不挂任何第三方网关，<br>
   曲库、歌词、评论、私人雷达，都从服务本身现取。
 </p>
