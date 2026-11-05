@@ -121,6 +121,11 @@ Stable tags are cut from `master`; preview tags (with a `-` suffix such as
 `v0.2.0-beta.1`) are cut from `nextgen`. The `+N` build number in
 `pubspec.yaml` is Android's `versionCode` and must never decrease.
 
+Both branches are listed in `on.push.branches`. After creating a branch or
+changing the repository's default branch, confirm with an ordinary push (or
+`gh workflow run build.yml --ref master -R houmu05/Lazer`) that the workflow
+still triggers before cutting a release tag.
+
 See [updates.md](updates.md) for the client-side rules.
 
 
