@@ -3,6 +3,9 @@
 </p>
 
 <h1 align="center">Lazer</h1>
+<h3 align="center">
+  上游项目交流群：<a href="https://qm.qq.com/q/JJJfE0QV00">神秘交流群 · 1063238023</a>
+</h3>
 
 <p align="center">
   <a href="https://qm.qq.com/q/JJJfE0QV00"><img alt="QQ 群：1063238023" src="https://img.shields.io/badge/QQ%E7%BE%A4-1063238023-12B7F5?style=for-the-badge&logo=tencentqq&logoColor=white"></a>
@@ -110,7 +113,7 @@ Windows 请完整解压后运行；AppImage 下载后先 `chmod +x`。
 
 ## 开发状态与接手
 
-当前只维护 **Windows / Android / Linux** 三个平台（macOS、iOS 暂无设备实测，目标已移除）。
+当前只维护 **Windows / Android / Linux** 三个平台（macOS、iOS 暂无设备实测）。
 这份文档面向使用者；接手开发请看：
 
 - [docs/HANDOVER.md](docs/HANDOVER.md) — 仓库状态、环境命令、接口契约、构建与打包流程、已知坑。
@@ -124,8 +127,10 @@ Windows 请完整解压后运行；AppImage 下载后先 `chmod +x`。
 - 正在播放页版式参考 [AMLL Player](https://github.com/amll-dev/amll-player)。
 - 歌词动画参考 [Apple Music Like Lyrics](https://github.com/amll-dev/applemusic-like-lyrics)。
 - 第三方组件与它们各自的许可：[THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md)。
+- Lazer-(https://github.com/chuxuehaocai/Lazer)
 - 界面字体是小米的 **MiSans**，谢谢你，MiSans。
 - 还有屏幕前的你：愿意把它下载下来，认真听完一首歌，就已经很好了。
+- 注意本项目为非官方客户端，与网易无隶属关系。内容版权归对应权利方所有，使用时请遵守相关法律法规与平台规则
 
 <p align="center">
   <img src="docs/images/mark.png" width="44" alt="Lazer">
