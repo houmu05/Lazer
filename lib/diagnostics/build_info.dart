@@ -4,14 +4,19 @@ import '../updates/release_version.dart';
 ///
 /// Automated builds stamp both through `--dart-define` (see
 /// `.github/workflows/build.yml`): `LAZER_COMMIT=<sha>` and
-/// `LAZER_VERSION=<tag>`. Local builds without the defines fall back to the
-/// values this tree was cut from, so the About row and the update checker
-/// still have something honest to compare against.
+/// `LAZER_VERSION=<tag>`. Branch builds pass a branch name, which is not a
+/// version; those fall back to the latest stable release below so the About
+/// row agrees with the app metadata and the update checker can still tell
+/// whether a newer release exists.
 abstract final class BuildInfo {
   static const String _stamped = String.fromEnvironment('LAZER_COMMIT');
   static const String _fallback = 'a8518ab';
   static const String _stampedVersion = String.fromEnvironment('LAZER_VERSION');
-  static const String _fallbackVersion = '2.0.0-beta.5.hotfix';
+
+  /// Keep in sync with the last stable tag and the `version:` in pubspec.yaml.
+  /// The fork uses the 0.1.x line; the old 2.0.0-beta fallback made branch
+  /// builds look newer than every 0.1.x release and hid update prompts.
+  static const String _fallbackVersion = '0.1.0';
 
   /// The full commit SHA the binary was built from.
   static String get commit => _stamped.isEmpty ? _fallback : _stamped;
@@ -22,10 +27,10 @@ abstract final class BuildInfo {
     return value.length <= 7 ? value : value.substring(0, 7);
   }
 
-  /// The release version without the tag's `v` prefix, e.g. `2.0.0-beta.2`.
+  /// The release version without the tag's `v` prefix, e.g. `0.1.1`.
   ///
-  /// A branch build is not a version, so it falls back to the
-  /// version in pubspec instead of feeding a branch name to SemVer comparison.
+  /// A branch build is not a version, so it falls back to the latest stable
+  /// release instead of feeding a branch name to SemVer comparison.
   static String get version {
     final ReleaseVersion? parsed = ReleaseVersion.parse(_stampedVersion);
     return parsed?.normalized ?? _fallbackVersion;

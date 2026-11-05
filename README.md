@@ -13,9 +13,9 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/chuxuehaocai/Lazer/actions/workflows/build.yml"><img alt="build" src="https://img.shields.io/badge/build-GitHub%20Actions-6C8EBF"></a>
+  <a href="https://github.com/houmu05/Lazer/actions/workflows/build.yml"><img alt="build" src="https://img.shields.io/badge/build-GitHub%20Actions-6C8EBF"></a>
   <img alt="Flutter" src="https://img.shields.io/badge/Flutter-3.47.0-54C5F8?logo=flutter&logoColor=white">
-  <img alt="version" src="https://img.shields.io/badge/Lazer-v2.0.0-8E7CC3">
+  <img alt="version" src="https://img.shields.io/github/v/release/houmu05/Lazer?label=Lazer&color=8E7CC3">
   <img alt="platforms" src="https://img.shields.io/badge/Windows%20%C2%B7%20Linux%20%C2%B7%20Android-7FB6A4">
   <a href="LICENSE"><img alt="license" src="https://img.shields.io/badge/license-AGPL--3.0-4C9A7A"></a>
 </p>
@@ -96,7 +96,7 @@ flutter run
 
 ## 自动构建
 
-向 `nextgen` 推送代码后，[GitHub Actions](https://github.com/chuxuehaocai/Lazer/actions/workflows/build.yml)
+向 `master`（正式版主线）或 `nextgen`（预览 beta）推送代码后，[GitHub Actions](https://github.com/houmu05/Lazer/actions/workflows/build.yml)
 会先检查代码，再构建下面的产物。推送 `v*` 版本标签会在所有构建成功后自动创建 GitHub Release；
 带 `-beta.1` 等后缀的版本会标为预发布。文件名统一为 `Lazer-<系统>-<架构>`。
 

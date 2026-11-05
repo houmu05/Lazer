@@ -18,7 +18,7 @@ class AppRelease {
     this.publishedAt,
   });
 
-  /// The original tag, e.g. `v2.0.0-beta.2`.
+  /// The original tag, e.g. `v0.1.1`.
   final String tag;
 
   final ReleaseVersion version;

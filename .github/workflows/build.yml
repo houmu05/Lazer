@@ -1,11 +1,13 @@
 name: Build Lazer
 
+# master is the stable mainline; nextgen carries preview/beta work. Both
+# must be listed or a push to the mainline triggers no build at all.
 on:
   push:
-    branches: [nextgen]
+    branches: [master, nextgen]
     tags: ['v*']
   pull_request:
-    branches: [nextgen]
+    branches: [master, nextgen]
   workflow_dispatch:
 
 permissions:

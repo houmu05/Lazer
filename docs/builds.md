@@ -1,11 +1,11 @@
 # Automated builds
 
-[Build nextgen](https://github.com/chuxuehaocai/Lazer/actions/workflows/build.yml)
-runs for pushes and pull requests targeting `nextgen`, manual
-`workflow_dispatch` runs, and `v*` version tags. Flutter is pinned to
-**3.47.0 stable**. A successful run for a `v*` tag creates a GitHub Release
+[Build Lazer](https://github.com/houmu05/Lazer/actions/workflows/build.yml)
+runs for pushes and pull requests targeting `master` (stable) and `nextgen`
+(preview/beta), manual `workflow_dispatch` runs, and `v*` version tags.
+Flutter is pinned to **3.47.0 stable**. A successful run for a `v*` tag creates a GitHub Release
 with all platform binaries and SHA-256 files. A tag containing a hyphen, such
-as `v2.0.0-beta.1`, is published as a pre-release. Set the matching app version
+as `v0.2.0-beta.1`, is published as a pre-release. Set the matching app version
 in `pubspec.yaml` before pushing the tag so the binaries report the same version.
 
 Analysis and tests run first. Four independent platform/architecture builds then
@@ -108,14 +108,18 @@ back to the checked-in values in `lib/diagnostics/build_info.dart`.
 ## Publishing an update
 
 1. Set `version:` in `pubspec.yaml` to the tag without its `v` prefix and bump
-   the build number (for example `2.0.0-beta.3+3`).
-2. Commit, then push an annotated tag with the same version (`v2.0.0-beta.3`).
+   the build number (for example `0.1.1+9`).
+2. Commit, then push an annotated tag with the same version (`v0.1.1`).
 3. The build workflow runs every platform job. Only when all of them pass does
    the release job attach the artifacts; a tag containing `-` becomes a
    pre-release.
 4. An installed build checks `api.github.com` at most once a day, and offers
    the newest release newer than its own `LAZER_VERSION`. Stable builds ignore
    pre-releases; a beta build sees later betas.
+
+Stable tags are cut from `master`; preview tags (with a `-` suffix such as
+`v0.2.0-beta.1`) are cut from `nextgen`. The `+N` build number in
+`pubspec.yaml` is Android's `versionCode` and must never decrease.
 
 See [updates.md](updates.md) for the client-side rules.
 
