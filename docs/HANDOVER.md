@@ -1,7 +1,7 @@
 # 接手须知（Handover）
 
 写给下一个接手的人或 AI：这个仓库现在是什么状态、怎么跑、从哪儿继续。
-最后更新：2026-11-04（`v0.1.0` 发布）。`nextgen` 与 `review/2026-11-04` 保持同一提交，
+最后更新：2026-11-05（补入用户测试反馈；`v0.1.0` 已发布）。`nextgen` 与 `review/2026-11-04` 保持同一提交，
 以 `git log -1` 为准。**唯一工作副本是 WSL `/home/seele/workspace/Lazer`**，
 Windows 侧的副本已弃用（见 §9）。
 
@@ -52,7 +52,7 @@ cd /home/seele/workspace/Lazer
 tool/check_toolchain.sh          # 版本/依赖自检
 flutter pub get --enforce-lockfile
 flutter analyze --no-pub         # 基线：No issues found!
-flutter test --no-pub            # 基线：1065 passed / 0 failed（约 4 分钟）
+flutter test --no-pub            # 必须全绿（约 4 分钟）；数字口径见下方说明
 ```
 
 不要改 `pubspec.lock` 去迁就旧 SDK；CI 里 7 处 `--enforce-lockfile`。
@@ -69,9 +69,12 @@ flutter test --no-pub            # 基线：1065 passed / 0 failed（约 4 分�
   `git -C` 操作仓库，**不能执行 WSL 内的 flutter/shell 命令**；这类命令请在 WSL 终端手动执行。
 
 数字口径：审查当时的测试基线是 **1056**（静态扫描 936 个 `test()`/`testWidgets()` 调用点）；
-后续新增 9 个用例（收藏专辑 3 + liked 1 + 资料库 widget 1 + `/album/sublist` 解析 4），
-当前基线是 **1065**（945 个调用点）。`docs/reviews/2026-11-04-code-review.md` 里的 1056 是审查
-当时的历史快照，不是现在的数字。
+随后新增 9 个用例（收藏专辑 3 + liked 1 + 资料库 widget 1 + `/album/sublist` 解析 4），
+用户本机复跑确认 **1065 passed / 0 failed**（945 个调用点）。`docs/reviews/2026-11-04-code-review.md`
+里的 1056 是审查当时的历史快照。2026-11-04 的安全修复又加了 9 条回归（更新检查 3、
+LAN 遥控器 6），静态调用点现为 **954**（159 个测试文件）；CI 的 check job 已全绿，
+但本会话 `wsl.exe` 被拦截、**未复跑取得精确 passed 数**，按增量推算约 1074，
+请以 WSL 终端里 `flutter test --no-pub` 的实测输出为准，不要再把 1065 当现值。
 
 ## 4. 当前功能边界
 
@@ -147,6 +150,10 @@ CI：`.github/workflows/build.yml`，job = `check` + `windows` + `linux` + `andr
 - **版本标签**：`v0.1.0`，本 fork 的首个发布标签。`pubspec.yaml` 里的
   `2.0.0-beta.5.hotfix+7` 是沿用上游的版本号，未改。tag 不含 `-`，`release` job
   按正式版发布；`docs/releases/` 没有 `v0.1.0.md`，notes 走 `--generate-notes`。
+  **这已造成版本显示不一致，见下方「2026-11-05 用户测试反馈」**。
+- **发布结果**：<https://github.com/houmu05/Lazer/releases/tag/v0.1.0>，
+  run `41844471311` 全绿，`draft=false`、`prerelease=false`；4 个平台产物、
+  `.sha256` 与 3 个 Android Audio-Relink `tar.gz` 已挂载。
 - **工作副本**：从本次起只在 WSL `/home/seele/workspace/Lazer` 维护。
   Windows `C:\Users\houmu\WorkBuddy AI\LAZER` 仅保留历史副本、构建产物与密钥备份，
   不再更新，也不再与 WSL 双向同步。
@@ -160,6 +167,23 @@ CI：`.github/workflows/build.yml`，job = `check` + `windows` + `linux` + `andr
   不再指向上游；`test/about_project_link_test.dart` 与 `test/update_checker_test.dart`
   已同步断言。
 - **未做**：`nextgen` 未改名为 `main`（用户决定保持）；`review` → `nextgen` 的合并
-  按用户计划在测试后进行。
+  按用户计划在测试后进行（TODO §0 已由用户实测通过，合并仍未执行）。
 - **残余风险**（沿用安全评估）：LAN 遥控器首次配对 URL 仍含令牌、传输仍是明文 HTTP；
   彻底解决需一次性配对码 + 本地 TLS。
+
+### 2026-11-05 用户测试反馈（两项，均未修，详见 `TODO.md` §1）
+
+1. **版本显示不一致**：系统「应用详情」是 `2.0.0-beta.5.hotfix`（`pubspec.yaml:19`
+   决定 Android `versionName/versionCode` 与 Windows `Runner.rc` 的 `FLUTTER_VERSION`），
+   应用内「关于」是 `v0.1.0`（`BuildInfo` 读 tag 构建注入的 `LAZER_VERSION`），
+   README 徽章还是 `v2.0.0`。分支包的 `BuildInfo.version` 回退到 `2.0.0-beta.5.hotfix`，
+   按 SemVer 比 `0.1.0` 大，因此**分支构建不会提示升级到 v0.1.0**。
+   改 pubspec 时 `+N` 必须 ≥ 8，否则 Android `versionCode` 从 7 倒退、已装版本无法就地升级。
+   版本线选 `0.1.x` 还是 `2.0.0-beta.x` 需人决定；本轮**未改任何版本字符串或业务代码**。
+2. **收藏专辑没有歌单那样的长按拖动排序**：歌单走
+   `lib/ui/library_page.dart:160-167` 的 `_PlaylistRowsSliver(onReorder:)` +
+   `AppState.setPlaylistOrder`（持久化键 `lazer_playlist_order`）；专辑是
+   `:231-248` 的纯 `SliverGrid.builder`，`AppState` 无排序状态。实现时还要处理
+   `:1352-1370` 的分页追加与 `:1912` 的会话重置，避免用户顺序被冲掉。
+
+证据、影响与验收标准见 `KNOWN-ISSUES.md`「版本 / 发布口径」「功能缺口」两节。
