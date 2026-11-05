@@ -2,22 +2,30 @@
 
 本文件只记录**已核实**的问题（有代码位置或实测证据）；未复现的猜测不写。
 完整的审查背景见 `docs/reviews/2026-11-04-code-review.md`，待办见 `TODO.md`。
-2026-11-05 更新：按 `v0.1.0` 发布结果与用户实测刷新；已解决项集中到文末「已解决」小节，
-两项新反馈见「版本 / 发布口径」与「功能缺口」。
+2026-11-05 更新：按 `v0.1.0` 发布结果与用户实测刷新，并统一为 `0.1.x` 版本线、
+`master`/`nextgen` 双分支模型；已解决项集中到文末「已解决」小节。
+版本口径已修，收藏专辑缺少长按排序仍未修（见「功能缺口」）。
 
 严重度：P0 发布/数据风险 · P1 正确性/安全 · P2 一致性/维护性。
 
-## 版本 / 发布口径
+## 版本 / 发布口径（2026-11-05 已统一为 `0.1.x`）
 
-| 级别 | 问题 | 证据 | 影响 |
-| --- | --- | --- | --- |
-| P1 | 同一个 `v0.1.0` 安装包对外显示三套版本号：系统「应用详情」是 `2.0.0-beta.5.hotfix`（`+7`），应用内「关于」是 `v0.1.0`，README 徽章是 `v2.0.0` | `pubspec.yaml:19` 的 `version: 2.0.0-beta.5.hotfix+7` 决定 Android `versionName/versionCode` 与 Windows `Runner.rc` 的 `FLUTTER_VERSION`（`windows/runner/Runner.rc:66,72` 是无 define 时的兜底 `2.0.0`）；`lib/diagnostics/build_info.dart:11-12,27-30` 读 `--dart-define=LAZER_VERSION`，tag 构建由 `.github/workflows/build.yml:24` 取 `github.ref_name` = `v0.1.0`；`README.md:18`、`README.en.md:18` 徽章硬编码 `v2.0.0` | 用户无法判断所装版本；更新检查与侧载升级各自以不同数字为准 |
-| P1 | 分支构建永远不会提示升级到 `v0.1.0` | `BuildInfo.version` 在 `LAZER_VERSION` 是分支名（解析失败）时回退 `2.0.0-beta.5.hotfix`；`lib/state/app_state.dart:320` 以此为 current，`lib/updates/update_checker.dart:116` 按 SemVer 比较，`0.1.0 < 2.0.0` → 判定无更新 | 用 run `41837109045` 等分支包测试的用户收不到正式版推送，只能手动下载 |
-| P1 | 若把 pubspec 直接改成 `0.1.0+1`，Android `versionCode` 会从 7 降到 1 | `android/app/build.gradle.kts:79` 取 `flutter.versionCode`（即 `+N`）；CI 未覆盖该值（`.github/workflows/build.yml:356-358`） | 已装 `v0.1.0` 的设备无法就地升级，必须先卸载 |
+三套版本号曾并存：系统「应用详情」`2.0.0-beta.5.hotfix`、应用内「关于」`v0.1.0`、
+README 徽章 `v2.0.0`。根因是 `pubspec.yaml` 沿用上游版本号，而 `BuildInfo` 读 tag 构建
+注入的 `LAZER_VERSION`（`.github/workflows/build.yml:24`）。现已统一：`pubspec.yaml`
+= `0.1.0+8`，`BuildInfo._fallbackVersion` = `0.1.0`，`Runner.rc` 兜底 = `0.1.0`，
+README 版本徽章改为动态读取 GitHub 最新 release。
+注意：已发布的 `v0.1.0` 产物元数据不可追溯修改，仍显示 `2.0.0-beta.5.hotfix`；
+三处一致从下一个 tag（`v0.1.1`）起才在产物上体现。
 
-**口径待定（需人决定，本轮未改任何版本字符串）**：以 fork 的 `0.1.x` 为唯一版本线，
-还是继续沿用上游 `2.0.0-beta.x`。无论选哪条，都要同步 `pubspec.yaml`、两个 README 徽章、
-tag 命名、`docs/releases/` notes 文件名与 `BuildInfo` 的兜底值；验收标准见 `TODO.md` §1。
+**长期约束（每次发版都要检查，勿凭记忆）**：
+
+| 约束 | 原因 |
+| --- | --- |
+| pubspec 版本名 = tag 去掉 `v` 后的值 | 系统应用详情、应用内「关于」、更新检查三处才一致 |
+| `+N` 只增不减（当前 8，`v0.1.0` 发布时 7） | `android/app/build.gradle.kts:79` 把 `+N` 当 Android `versionCode`，倒退则已装版本无法就地升级 |
+| `BuildInfo._fallbackVersion` 同步到最新正式版 | 分支构建用它作 current；曾因回退 `2.0.0-beta.5.hotfix` > `0.1.0` 而不提示升级 |
+| 正式 tag 从 `master` 打且不带 `-`；beta tag 从 `nextgen` 打且带 `-` | `release` job 按 tag 名是否含 `-` 判定 prerelease；见 `docs/HANDOVER.md` §1 |
 
 ## 功能缺口
 
@@ -25,7 +33,7 @@ tag 命名、`docs/releases/` notes 文件名与 `BuildInfo` 的兜底值；验�
 | --- | --- | --- | --- |
 | P1 | 资料库只有「收藏专辑」，没有官方客户端的「已购专辑」tab | 官方客户端截图 vs `lib/ui/library_page.dart` 当前只渲染一个列表；`/album/sublist` 响应的 `paidCount` 语义未实测 | 已购专辑看不到 |
 | P2 | 收藏专辑没有歌单那样的长按拖动排序 | 歌单：`lib/ui/library_page.dart:160-167` 用 `_PlaylistRowsSliver(onReorder:)` → `AppState.setPlaylistOrder`（`lib/state/app_state.dart:612-632`，持久化键 `lazer_playlist_order`），标题副文案「长按拖动排序」（`:117`）；专辑：`:231-248` 是纯 `SliverGrid.builder` + `_AlbumCard`（`:1077-1090` 只有 `onTap`），标题只有刷新按钮，`AppState` 无 `albumOrder` 对应物（`:1213` 的 `libraryAlbums` 直接按服务端顺序渲染） | 收藏专辑只能按接口返回顺序显示，无法自定义；与歌单交互不一致 |
-| P2 | v1.5（`master` 分支）「我喜欢」列表上限 1000 | Kotlin `LazerPlaybackQueue.MAX_TRACKS = 1_000`，`loadCompletePlaylist` 取 `min(trackCount, 1000)` | 只影响老客户端；2.0/nextgen 已验证 1154 首完整加载（`test/liked_tracks_test.dart`） |
+| P2 | v1.5（上游 `origin/master`）「我喜欢」列表上限 1000 | Kotlin `LazerPlaybackQueue.MAX_TRACKS = 1_000`，`loadCompletePlaylist` 取 `min(trackCount, 1000)` | 只影响老客户端；本 fork 的 Flutter 客户端已验证 1154 首完整加载（`test/liked_tracks_test.dart`） |
 
 专辑排序还要处理分页：`:1352-1370` 的 `loadLibraryAlbums(more: true)` 会追加新页，
 `:1912` 在会话变化时清空列表。若只对已加载项排序，刷新或「加载更多」会把用户顺序冲掉。
@@ -38,7 +46,7 @@ the release keystore.`），仓库变量 `LAZER_BUILD_ALL_PLATFORMS=true` 已开
 
 | 级别 | 问题 | 证据 | 影响 |
 | --- | --- | --- | --- |
-| P1 | 平台裁剪后与上游分叉 | 删除 `ios/`、`macos/` 与 4 个 CI job；fork `nextgen` 已快进到本 fork 最新提交 | 合并上游会冲突，需要人工过 |
+| P1 | 平台裁剪后与上游分叉 | 删除 `ios/`、`macos/` 与 4 个 CI job；`fork/master` 与 `fork/nextgen` 均为本 fork 最新提交 | 合并上游会冲突，需要人工过 |
 | P2 | CI 每次重建 FFmpeg，Windows job 20–25 分钟 | `.github/workflows/build.yml` windows job → `native/lazer-audio/tools/build_dsd_ffmpeg.sh` | 迭代慢，浪费 runner 时间 |
 
 ## 网关 / 网络（来自审查，未修）
@@ -64,8 +72,8 @@ the release keystore.`），仓库变量 `LAZER_BUILD_ALL_PLATFORMS=true` 已开
 | 级别 | 问题 | 位置 |
 | --- | --- | --- |
 | P1 | `AppState` 3,720 行单例上帝对象：100 处通知、55 处偏好读写，反向 import UI | `lib/state/app_state.dart:136`、`:33` |
-| P2 | 文档漂移：ABI 写 v24 实为 29；Apple 引擎状态段落仍在；`THIRD-PARTY-NOTICES.md` 提到 macOS 许可 staging 路径；README 徽章仍写 `v2.0.0` | `docs/audio-engine.md:60`、`docs/audio-engine-status.md`、`docs/customization-and-audio.md`、`README.md:18`、`README.en.md:18` |
-| P2 | 代码里的仓库链接已统一指向 fork，但 README 的 CI 徽章与 `docs/builds.md:3`、`docs/releases/*.md` 的下载徽章仍指向上游 | `README.md:16,99`、`README.en.md:16,101`、`docs/builds.md` |
+| P2 | 文档漂移：ABI 写 v24 实为 29；Apple 引擎状态段落仍在；`THIRD-PARTY-NOTICES.md` 提到 macOS 许可 staging 路径 | `docs/audio-engine.md:60`、`docs/audio-engine-status.md`、`docs/customization-and-audio.md` |
+| P2 | `docs/releases/v2.0.0-*.md` 的历史下载徽章仍指向上游 release | 四个历史说明文件；属历史记录，建议保留不改 |
 | P2 | 死代码/孤儿资产：`lib/screens/catalog_detail_page.dart` 无引用；`test/goldens/` 3 张 PNG 无 `matchesGoldenFile`；`tool/check_i18n.py` 未接 CI | 对应文件 |
 | P2 | 三套设计 token 并存（Apple / lake-blue / 羊皮纸） | `lib/theme/apple_design.dart`、`tokens.dart`、`design_tokens.dart` |
 
@@ -83,15 +91,19 @@ the release keystore.`），仓库变量 `LAZER_BUILD_ALL_PLATFORMS=true` 已开
   原「未用真实账号验证」条目已关闭。
 - **P1-1 / P1-2 / P1-4**：LAN 遥控器来源与令牌硬化（`5c99480`、`b0ed292`）、
   更新源与关于页指向 fork（`6cc9876`、`2714235`），共 9 条回归测试。
+- **版本口径与分支模型**：2026-11-05 统一为 `0.1.x`（pubspec `0.1.0+8`、BuildInfo 兜底
+  `0.1.0`、Runner.rc 兜底、README 动态徽章）；新增 `master` 默认分支（正式版），
+  `nextgen` 保留为预览/beta，`review/2026-11-04` 已删除，CI 的 push/PR 分支已包含两者。
 - **`.gitignore`**：`e133f7a` 补 `android/app/upload-keystore.jks` 与 `android/key.properties`；
   此前 `docs/builds.md` 声称已忽略但并未忽略。
 - **P1-3（会话 cookie 明文）仍未解决**，见「网关 / 网络」。
 
 ## 已确认不在本仓库的问题
 
-- 「我喜欢的音乐」最多 1000 首：那是 **v1.5（`master` 分支 Kotlin）** 的队列上限
+- 「我喜欢的音乐」最多 1000 首：那是 **v1.5（上游 `origin/master` Kotlin）** 的队列上限
   （`LazerPlaybackQueue.MAX_TRACKS = 1_000`），不是 nextgen；nextgen 的 1154 首加载有回归测试。
 - 「没有专辑入口」：1.5 里确实没实现（上游聊天确认“后面会补充”）；nextgen 本轮已加收藏专辑。
 - 历史里的 `release.jks`（4422 字节 PKCS#8 私钥）由上游 `ed97c01` 引入，
-  只在 `origin/master` 可达；fork 没有 `master` 分支，两个发布分支的树与历史均不含它。
+  只在 `origin/master` 可达；本 fork 的 `master`（2026-11-05 新建的 Flutter 正式版主线）
+  与 `nextgen` 的树与历史均不含它，且与上游 `origin/master` 不是同一分支。
   **绝不能复用上游密钥**；本 fork 的签名密钥是 2026-11-04 新生成的。

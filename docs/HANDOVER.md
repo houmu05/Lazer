@@ -1,17 +1,19 @@
 # 接手须知（Handover）
 
 写给下一个接手的人或 AI：这个仓库现在是什么状态、怎么跑、从哪儿继续。
-最后更新：2026-11-05（补入用户测试反馈；`v0.1.0` 已发布）。`nextgen` 与 `review/2026-11-04` 保持同一提交，
-以 `git log -1` 为准。**唯一工作副本是 WSL `/home/seele/workspace/Lazer`**，
+最后更新：2026-11-05（`0.1.x` 版本线 + `master`/`nextgen` 双分支模型）。
+`master`（正式主线）与 `nextgen`（预览 beta）保持同一提交，以 `git log -1` 为准。
+**唯一工作副本是 WSL `/home/seele/workspace/Lazer`**，
 Windows 侧的副本已弃用（见 §9）。
 
 ## 1. 这是什么
 
 `houmu05/Lazer` 是 [chuxuehaocai/Lazer](https://github.com/chuxuehaocai/Lazer) 的 fork，
-分支 `nextgen` 是 Flutter 重写的 2.0 客户端（网易云音乐第三方客户端，WEAPI/EAPI 自带、
-原生 Hi-Fi 音频引擎）。上游的 `master` 是 Kotlin 的 1.5 老客户端，本 fork 不维护它。
+`master` 是本 fork 的正式版主线，`nextgen` 是预览/beta 分支；两者都是 Flutter 重写的
+2.0 客户端（网易云音乐第三方客户端，WEAPI/EAPI 自带、原生 Hi-Fi 音频引擎）。
+上游 `origin/master` 是 Kotlin 的 1.5 老客户端，本 fork 不维护它，注意别与主线同名混淆。
 
-相对上游 `nextgen`（`7c56023`），远端 fork 的 `nextgen` 与 `review/2026-11-04` 都指向下面这串提交的最新一条：
+相对上游 `origin/nextgen`（`7c56023`），远端 fork 的 `master` 与 `nextgen` 都指向下面这串提交的最新一条：
 
 | 提交 | 内容 |
 | --- | --- |
@@ -30,11 +32,28 @@ Windows 侧的副本已弃用（见 §9）。
 | `b0ed292` | 删除冗余 import（CI analyzer 修复） |
 | 最新一条（`git log -1`） | 关于页与检查更新统一指向本 fork、`.gitignore` 补密钥规则、交接文档 |
  
-> **分支陷阱（先看这个）**：本 fork 的代码在远端 `fork`（`git remote -v`，指向 `houmu05/Lazer`）的
-> `nextgen` 上。本地 clone 的 `nextgen` 默认跟踪 `origin/nextgen`（上游），通常仍停在 `7c56023`；
-> 直接 `git checkout nextgen` 会退回上游旧代码。接手时先 `git fetch fork`，再
-> `git checkout -B nextgen fork/nextgen`，或直接用与它同提交的 `review/2026-11-04`。
+> **分支陷阱（先看这个）**：本 fork 的代码在远端 `fork`（指向 `houmu05/Lazer`）的
+> **`master`** 上（默认分支），`nextgen` 是同提交的预览分支。本地 clone 的 `nextgen`
+> 默认跟踪 `origin/nextgen`（上游），通常仍停在 `7c56023`；直接 `git checkout nextgen`
+> 会退回上游旧代码。接手时先 `git fetch fork`，再 `git checkout -B master fork/master`
+> （正式主线）或 `git checkout -B nextgen fork/nextgen`（预览）。
 > 用 `git ls-remote --heads fork` 确认远端实际指向，不要相信本地分支名。
+> 上游的 Kotlin 1.5 老分支一律写作 `origin/master`，不要与本 fork 的 `master` 混淆。
+
+### 分支模型（2026-11-05 起）
+
+| 分支 | 用途 | tag 规则 | Release 类型 |
+| --- | --- | --- | --- |
+| `master`（默认分支） | 正式版主线，只收已验证的改动 | `v0.1.1` 这类不带 `-` 的 `0.1.x` tag | 正式 Release |
+| `nextgen` | 预览 / beta，改动先落这里验证 | `v0.2.0-beta.1` 这类带 `-` 的 tag | prerelease（`build.yml` 按 tag 名含 `-` 判定） |
+
+- `review/2026-11-04` 已于 2026-11-05 删除，全部提交都在 `master` / `nextgen` 上；
+  如需恢复：`git push fork <该分支最后的 sha>:refs/heads/review/2026-11-04`。
+- CI 的 `on.push.branches` 与 `on.pull_request.branches` 都列了 `master` 与 `nextgen`；
+  少写 `master` 会导致主线推送完全不触发构建。`tags: ['v*']` 独立于分支。
+- 版本线是 fork 的 `0.1.x`：`pubspec.yaml` 版本名 = tag 去掉 `v`，`+N` 是 Android
+  `versionCode`，**只增不减**（`v0.1.0` 发布时 `+7`，现为 `+8`）；发版时还要同步
+  `BuildInfo._fallbackVersion` 与 `docs/releases/<tag>.md`。
 
 ## 2. 先读什么
 
@@ -106,7 +125,8 @@ CI：`.github/workflows/build.yml`，job = `check` + `windows` + `linux` + `andr
 
 - 全量已恢复：仓库变量 `LAZER_BUILD_ALL_PLATFORMS=true` 已设置，`linux`、`android`、
   `release` 的 `if` 因此成立。要临时回到只打 Windows，删除该变量或设为非 `true`。
-- 触发方式：推 `nextgen`（`on.push`）或 `gh workflow run build.yml --ref <branch> -R houmu05/Lazer`。
+- 触发方式：推 `master` 或 `nextgen`（`on.push.branches` 两者都列了）、推 `v*` tag，
+  或 `gh workflow run build.yml --ref <branch> -R houmu05/Lazer`。
   fork 的 Actions 需要先在网页 Actions 页启用一次（若报 workflow 404 就是这个原因）。
 - Windows job 约 20–25 分钟，大头是每次现场编 FFmpeg（`native/lazer-audio/tools/build_dsd_ffmpeg.sh`）。
 - 产物：`Lazer-Windows-x86_64.zip`、两个 `Lazer-Linux-*.AppImage`、`Lazer-Android-universal.apk`；
@@ -124,7 +144,8 @@ CI：`.github/workflows/build.yml`，job = `check` + `windows` + `linux` + `andr
 ## 7. 已知坑（操作层面）
 
 - 本机没有 Windows/Android 工具链；Windows 包只能由 CI 出，Linux 包需要 GTK/clang/libmpv 等系统依赖。
-- fork 与上游已分叉：远端 `fork/nextgen` 是本文档所在提交，上游是 `7c56023`；
+- fork 与上游已分叉：远端 `fork/master`（默认分支）与 `fork/nextgen` 是本文档所在提交，
+  上游 `origin/nextgen` 是 `7c56023`；
   本地 `nextgen` 可能还跟踪着 `origin/nextgen`（见 §1 的分支陷阱）。合并上游会因删除
   `ios/`、`macos/` 与文档改写而冲突，同步策略见 `TODO.md`。
 - Windows 测试的是新包还是旧包：看文件名旁的 commit/时间，或进设置页 About 看构建信息。
@@ -147,18 +168,18 @@ CI：`.github/workflows/build.yml`，job = `check` + `windows` + `linux` + `andr
 
 ## 9. 2026-11-04 发布与工作副本迁移
 
-- **版本标签**：`v0.1.0`，本 fork 的首个发布标签。`pubspec.yaml` 里的
-  `2.0.0-beta.5.hotfix+7` 是沿用上游的版本号，未改。tag 不含 `-`，`release` job
-  按正式版发布；`docs/releases/` 没有 `v0.1.0.md`，notes 走 `--generate-notes`。
-  **这已造成版本显示不一致，见下方「2026-11-05 用户测试反馈」**。
+- **版本标签**：`v0.1.0`，本 fork 的首个发布标签。发布时 `pubspec.yaml` 仍是上游的
+  `2.0.0-beta.5.hotfix+7`，造成三套版本号并存；2026-11-05 已统一为 `0.1.x`（见下方反馈 §1）。
+  tag 不含 `-`，`release` job 按正式版发布；`docs/releases/` 没有 `v0.1.0.md`，
+  notes 走 `--generate-notes`。
 - **发布结果**：<https://github.com/houmu05/Lazer/releases/tag/v0.1.0>，
   run `41844471311` 全绿，`draft=false`、`prerelease=false`；4 个平台产物、
   `.sha256` 与 3 个 Android Audio-Relink `tar.gz` 已挂载。
 - **工作副本**：从本次起只在 WSL `/home/seele/workspace/Lazer` 维护。
   Windows `C:\Users\houmu\WorkBuddy AI\LAZER` 仅保留历史副本、构建产物与密钥备份，
   不再更新，也不再与 WSL 双向同步。
-- **本轮安全修复**：`review/2026-11-04` 含 P1-1/P1-2（LAN 遥控器）、P1-4（更新源）
-  修复与 9 条回归测试。P1-3（会话 cookie 明文）仍未做：需要平台安全存储插件并
+- **本轮安全修复**（当时在 `review/2026-11-04` 分支，该分支已删除）：
+  含 P1-1/P1-2（LAN 遥控器）、P1-4（更新源）修复与 9 条回归测试。P1-3（会话 cookie 明文）仍未做：需要平台安全存储插件并
   重新生成 `pubspec.lock`，而 CI 使用 `--enforce-lockfile`，属单独立项。
 - **`.gitignore`**：已补 `android/app/upload-keystore.jks` 与 `android/key.properties`。
   此前 `docs/builds.md` 声称两者已忽略但实际没有，是真实缺陷（会导致私钥误提交）。
@@ -166,20 +187,21 @@ CI：`.github/workflows/build.yml`，job = `check` + `windows` + `linux` + `andr
   （`lib/updates/update_checker.dart`）都指向 `https://github.com/houmu05/Lazer`，
   不再指向上游；`test/about_project_link_test.dart` 与 `test/update_checker_test.dart`
   已同步断言。
-- **未做**：`nextgen` 未改名为 `main`（用户决定保持）；`review` → `nextgen` 的合并
-  按用户计划在测试后进行（TODO §0 已由用户实测通过，合并仍未执行）。
+- **分支整理（2026-11-05）**：新增 `master` 作为默认分支与正式版主线，`nextgen` 保留为
+  预览/beta，`review/2026-11-04` 已删除（两分支均含其全部提交）。`nextgen` 不改名 `main`。
 - **残余风险**（沿用安全评估）：LAN 遥控器首次配对 URL 仍含令牌、传输仍是明文 HTTP；
   彻底解决需一次性配对码 + 本地 TLS。
 
-### 2026-11-05 用户测试反馈（两项，均未修，详见 `TODO.md` §1）
+### 2026-11-05 用户测试反馈（1 已修 / 2 未修，详见 `TODO.md` §1）
 
-1. **版本显示不一致**：系统「应用详情」是 `2.0.0-beta.5.hotfix`（`pubspec.yaml:19`
-   决定 Android `versionName/versionCode` 与 Windows `Runner.rc` 的 `FLUTTER_VERSION`），
-   应用内「关于」是 `v0.1.0`（`BuildInfo` 读 tag 构建注入的 `LAZER_VERSION`），
-   README 徽章还是 `v2.0.0`。分支包的 `BuildInfo.version` 回退到 `2.0.0-beta.5.hotfix`，
-   按 SemVer 比 `0.1.0` 大，因此**分支构建不会提示升级到 v0.1.0**。
-   改 pubspec 时 `+N` 必须 ≥ 8，否则 Android `versionCode` 从 7 倒退、已装版本无法就地升级。
-   版本线选 `0.1.x` 还是 `2.0.0-beta.x` 需人决定；本轮**未改任何版本字符串或业务代码**。
+1. **版本显示不一致（已修）**：统一采用 fork 的 `0.1.x` 版本线。`pubspec.yaml` 改为
+   `0.1.0+8`（版本名对齐 `v0.1.0`，`+8` 让 Android `versionCode` 从 7 递增而非倒退），
+   `BuildInfo._fallbackVersion` 改为 `0.1.0`，`Runner.rc` 兜底同步，README 版本徽章
+   改为动态读取 GitHub 最新 release。分支构建过去回退 `2.0.0-beta.5.hotfix`，
+   按 SemVer 大于 `0.1.0` 所以不提示升级；现在回退 `0.1.0`，后续 `v0.1.1` 能正常提示。
+   已发布的 `v0.1.0` 产物元数据不可追溯修改，仍显示旧版本号；从 `v0.1.1` 起才在产物上一致。
+   **发版纪律**：打 tag 前同步 `pubspec.yaml`（版本名 = tag 去掉 `v`、`+N` 只增）、
+   `BuildInfo` 兜底值与 `docs/releases/<tag>.md`；正式 tag 从 `master` 打，beta 从 `nextgen` 打。
 2. **收藏专辑没有歌单那样的长按拖动排序**：歌单走
    `lib/ui/library_page.dart:160-167` 的 `_PlaylistRowsSliver(onReorder:)` +
    `AppState.setPlaylistOrder`（持久化键 `lazer_playlist_order`）；专辑是

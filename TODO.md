@@ -3,7 +3,8 @@
 按优先级排列。每条都写了「动哪儿」和「怎么算完成」，接手时可直接挑一条做。
 缺陷与风险见 `KNOWN-ISSUES.md`，状态与命令见 `docs/HANDOVER.md`。
 2026-11-05 更新：§0 已由用户实测通过；§2 的全量构建与正式签名已完成；
-§1 开头加入两条用户测试反馈（版本口径、专辑长按排序）。
+版本口径已定为 `0.1.x` 并实施（§1 首条已勾选），分支改为 `master` 正式主线 +
+`nextgen` 预览；收藏专辑长按排序仍待做（§1 第二条）。
 
 ## 0. 已完成验证（2026-11-04，用户侧）
 
@@ -17,17 +18,13 @@
 
 ## 1. 功能补全
 
-- [ ] **统一版本口径（P1，先定策略再动手）**：见 `KNOWN-ISSUES.md`「版本 / 发布口径」。
-      需人决定用 fork 的 `0.1.x`，还是继续沿用上游 `2.0.0-beta.x`；确定后同步
-      `pubspec.yaml:19`、`README.md:18` / `README.en.md:18` 徽章、tag 命名、
-      `docs/releases/` notes 文件名与 `lib/diagnostics/build_info.dart` 的兜底值。
-      **硬约束**：`android/app/build.gradle.kts:79` 的 `versionCode` 取 pubspec 的 `+N`，
-      当前是 7；改成 `0.1.0+N` 时 `N` 必须 ≥ 8，否则已装 `v0.1.0` 的设备无法就地升级。
-      分支包的 `BuildInfo.version` 回退值 `2.0.0-beta.5.hotfix` 比 `0.1.0` 大，
-      按 SemVer 比较会判定「无更新」，也要一并处理。
-      验收：同一个构建里系统「应用详情」、应用内「关于」、README 徽章三处版本一致；
-      分支包能正确提示升级到最新 tag；补 `release_version` / `build_info` 的版本比较测试；
-      `flutter analyze --no-pub` 与 `flutter test --no-pub` 全绿。
+- [x] **统一版本口径（2026-11-05 已定并实施）**：采用 fork 的 `0.1.x` 版本线。
+      `pubspec.yaml` = `0.1.0+8`（版本名对齐 `v0.1.0`，`+8` 让 Android `versionCode`
+      从 7 递增）、`BuildInfo._fallbackVersion` = `0.1.0`、`Runner.rc` 兜底 = `0.1.0`，
+      README 版本徽章改为动态读取 GitHub 最新 release。分支包回退值不再大于 `0.1.x`，
+      后续 `v0.1.1` 能正常提示升级。
+      **后续发版纪律**：tag 去掉 `v` 后等于 pubspec 版本名、`+N` 只增不减、同步
+      `BuildInfo` 兜底值；正式 tag 从 `master` 打（不带 `-`），beta tag 从 `nextgen` 打（带 `-`）。
 - [ ] **收藏专辑长按拖动排序（与歌单一致）**：
       复用 `lib/ui/library_page.dart:331` 的 `_PlaylistRowsSliver`（当前绑定 `Playlist`，
       需抽成「id + builder」的通用网格），替换 `:231-248` 的 `SliverGrid.builder`；
@@ -55,14 +52,14 @@
       `Verify the APK signature` 输出 `APK signing certificate matches the release keystore.`。
       **密钥原件 `dist/android-signing/` 仍需离线备份**（见 `KNOWN-ISSUES.md` 已解决小节），
       CI 只存可重建的 secrets，不保管密钥文件。
-- [ ] **上游同步策略**（需人决定）：远端 `fork/nextgen` 与 `review/2026-11-04` 指向本 fork
-      最新提交，上游仍是 `7c56023`；注意本地 `nextgen` 默认跟踪 `origin/nextgen`（上游），
-      直接用它会拿到旧代码（见 `docs/HANDOVER.md` §1 分支陷阱）。用户已决定**保持
-      `nextgen` 不改名**，`review` → `nextgen` 的合并在测试通过后由用户执行（TODO §0 已通过）。
-      合并上游会因删除 `ios/`/`macos/` 与文档改写冲突。选项：
+- [ ] **上游同步策略**（需人决定）：`master` 是默认分支与正式版主线，`nextgen` 是
+      预览/beta；`review/2026-11-04` 已删除，两分支都包含原 review 的全部提交。
+      上游 `origin/nextgen` 仍是 `7c56023`；本地 `nextgen` 可能还跟踪着上游
+      （见 `docs/HANDOVER.md` §1 分支陷阱）。合并上游会因删除 `ios/`/`macos/`
+      与文档改写冲突。选项：
       (a) 长期维护 fork，定期 `git rebase`/`merge -X ours` 手工过；
       (b) 把本轮改动整理成上游 PR（专辑功能 + 许可 + CI 修复），上游合并后回退 fork；
-      (c) 只保留 `review/2026-11-04` 分支，`nextgen` 强制回退到上游。
+      (c) 保持分叉，只定期挑选上游修复。
 
 ## 3. 代码质量（来自 `docs/reviews/2026-11-04-code-review.md` 的 P1/P2）
 
@@ -79,8 +76,8 @@
 - [ ] 文档漂移清尾：`docs/audio-engine.md:60` ABI v24 vs 头文件 29；
       `docs/audio-engine-status.md`、`docs/customization-and-audio.md` 里仍残留 Apple 引擎段落；
       `THIRD-PARTY-NOTICES.md` 仍提到 macOS 的 FFmpeg 许可 staging 路径；
-      README 的 CI 徽章与 `docs/builds.md`、`docs/releases/*.md` 的下载徽章仍指向上游；
-      README 版本徽章仍是 `v2.0.0`（与 `v0.1.0` 发布不一致，随 §1 的版本口径一起改）。
+      `docs/releases/v2.0.0-*.md` 的历史下载徽章仍指向上游（属历史说明，建议保留不改）。
+      README 版本徽章与 CI 链接、`docs/builds.md` 的 CI 链接已于 2026-11-05 修正。
 - [ ] 卫生项：删 `lib/screens/catalog_detail_page.dart`（无引用）、
       `test/goldens/` 三张孤儿 PNG 或接上 `matchesGoldenFile`、
       把 `tool/check_i18n.py` 接进 CI。
