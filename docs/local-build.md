@@ -57,12 +57,12 @@ Measured on WSL Debian 13 with this SDK:
 
 - `flutter pub get --enforce-lockfile` completes in about 42 s.
 - `flutter analyze --no-pub` prints `No issues found!` (0 issues).
-- `flutter test --no-pub` is green in about 4 minutes. Historical baselines:
-  1056 at review time, 1065 after the album work, then nine more security
-  regressions were added on 2026-11-04 (954 static `test()`/`testWidgets()`
-  call sites across 159 files). CI's check job is green; the exact current
-  passed count was not re-measured locally — see `docs/HANDOVER.md` section 3
-  and trust the local run's output over any number written here.
+- `flutter test --no-pub` is green in about 4 minutes. Current CI baseline
+  (2026-11-05, runs `41978492846` and `41978501274` on `master` and `nextgen`):
+  **1074 passed / 0 failed**, with 954 static `test()`/`testWidgets()` call
+  sites across 159 files. Earlier snapshots were 1056 at review time and 1065
+  after the album work. See `docs/HANDOVER.md` section 3 for the history;
+  trust a fresh local run over any number written here.
 
 The suite runs headless and needs no display, so it works the same over SSH,
 in WSL without WSLg, and in CI. Treat a different issue or test count as a

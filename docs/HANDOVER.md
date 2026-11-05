@@ -91,9 +91,10 @@ flutter test --no-pub            # 必须全绿（约 4 分钟）；数字口径
 随后新增 9 个用例（收藏专辑 3 + liked 1 + 资料库 widget 1 + `/album/sublist` 解析 4），
 用户本机复跑确认 **1065 passed / 0 failed**（945 个调用点）。`docs/reviews/2026-11-04-code-review.md`
 里的 1056 是审查当时的历史快照。2026-11-04 的安全修复又加了 9 条回归（更新检查 3、
-LAN 遥控器 6），静态调用点现为 **954**（159 个测试文件）；CI 的 check job 已全绿，
-但本会话 `wsl.exe` 被拦截、**未复跑取得精确 passed 数**，按增量推算约 1074，
-请以 WSL 终端里 `flutter test --no-pub` 的实测输出为准，不要再把 1065 当现值。
+LAN 遥控器 6），静态调用点现为 **954**（159 个测试文件）。2026-11-05 的 CI
+（run `41978492846` / `41978501274`）在 `master` 与 `nextgen` 上分别实测
+**`flutter analyze --no-pub` = 0 issues、`flutter test --no-pub` = 1074 passed / 0 failed**。
+当前基线就是 **1074**，1065 与 1056 都是历史快照；本地复跑若数字不同，先查是否有新增用例。
 
 ## 4. 当前功能边界
 
