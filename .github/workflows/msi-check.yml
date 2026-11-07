@@ -1,0 +1,33 @@
+name: Windows MSI smoke
+
+# Manual smoke test for the MSI tooling: builds a package from a throwaway
+# bundle (two real 64-bit PE files and one asset) so a broken WiX authoring
+# fails here in minutes instead of after a full Windows FFmpeg build.
+on:
+  workflow_dispatch:
+
+jobs:
+  msi:
+    name: Build the MSI from a dummy bundle
+    runs-on: windows-2022
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - name: Build and extract the MSI
+        shell: pwsh
+        run: |
+          $bundle = Join-Path $env:RUNNER_TEMP 'bundle'
+          New-Item -ItemType Directory -Path (Join-Path $bundle 'data/flutter_assets') -Force | Out-Null
+          Copy-Item -LiteralPath "$env:WINDIR\System32\notepad.exe" -Destination (Join-Path $bundle 'lazer_nextgen.exe')
+          Copy-Item -LiteralPath "$env:WINDIR\System32\notepad.exe" -Destination (Join-Path $bundle 'flutter_windows.dll')
+          'manifest' | Set-Content -LiteralPath (Join-Path $bundle 'data/flutter_assets/AssetManifest.bin')
+          ./ci/package-windows-msi.ps1 -ReleaseDir $bundle -OutputDir dist
+          Get-ChildItem -LiteralPath dist | Format-Table Name, Length
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: Lazer-Windows-MSI-smoke
+          path: dist/*.msi
+          if-no-files-found: error
+          retention-days: 7
