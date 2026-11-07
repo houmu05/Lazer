@@ -458,11 +458,13 @@ jobs:
           for msi in "${msis[@]}"; do
             rm -rf /tmp/lazer-msi-check
             msiextract -C /tmp/lazer-msi-check "$msi" >/dev/null
-            find /tmp/lazer-msi-check -name 'lazer_nextgen.exe' -print -quit | grep -q . \
-              || { echo "::error::$msi carries no lazer_nextgen.exe"; exit 1; }
-            for component in lazer-audio.dll lazer-audio-bridge.dll avcodec avformat avutil swresample libmpv; do
-              find /tmp/lazer-msi-check -name "*${component}*.dll" -print -quit | grep -q . \
-                || { echo "::error::$msi carries no $component"; exit 1; }
+            # Match full filenames: the engine DLLs are named lazer-audio.dll
+            # and lazer-audio-bridge.dll, so appending .dll to the pattern
+            # would only match a name that has it twice.
+            for pattern in 'lazer_nextgen.exe' 'lazer-audio*.dll' 'avcodec*.dll' \
+              'avformat*.dll' 'avutil*.dll' 'swresample*.dll' 'libmpv*.dll'; do
+              find /tmp/lazer-msi-check -name "$pattern" -print -quit | grep -q . \
+                || { echo "::error::$msi carries no $pattern"; exit 1; }
             done
             echo "$msi carries the native engine"
           done
