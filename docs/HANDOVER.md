@@ -29,7 +29,7 @@ Windows 侧的副本已弃用（见 §9）。
 相对上游 `origin/nextgen`（`7c56023`），远端 fork 的提交历史如下（**`master` 是稳定线，
 `nextgen` 是预览线，两者不再同提交**）：
 
-- `master`：`a4cf519`（`dd52d3a` 的稳定内容 + Windows MSI 打包工具），不含本次功能。
+- `master`：`4b4d582`（`dd52d3a` 的稳定内容 + Windows MSI 打包工具及其修复提交），不含本次功能。
 - `nextgen`：`bca76bb`（`a4cf519` + 专辑拖动/喜欢排序 + beta 版本号 + 发布校验修复），
   已打 tag `v0.1.1-beta.1`（指向 `bca76bb`），发布为 prerelease。
   功能只在 `nextgen` 验证，通过后再合回 `master` 出正式版。
@@ -53,7 +53,7 @@ Windows 侧的副本已弃用（见 §9）。
 | `b0ed292` | 删除冗余 import（CI analyzer 修复） |
 | 最新一条（`git log -1`） | 关于页与检查更新统一指向本 fork、`.gitignore` 补密钥规则、交接文档 |
 | `1874b03`（仅 `nextgen`） | 资料库「专辑」长按/鼠标拖动排序（`lazer_album_order`）+「我喜欢」按歌曲/歌手排序（`lazer_liked_sort`），+8 个测试 |
-| `a4cf519`（`master`/`nextgen`） | Windows MSI 工具链：`ci/package-windows-msi.ps1` + `ci/windows/lazer.wxs` + `Windows MSI smoke` 工作流 |
+| `a4cf519`…`4b4d582`（`master`） | Windows MSI 工具链：`ci/package-windows-msi.ps1` + `ci/windows/lazer.wxs` + `Windows MSI smoke` 工作流（`4b4d582` 为稳定线当前头） |
 | 2026-11-07（`git log -1`） | 资料库「专辑」支持长按/鼠标拖动排序（`lazer_album_order`，通用可排序网格）；「我喜欢的音乐」新增按歌曲名称/歌手名称排序（`lazer_liked_sort`），+8 个测试 |
  
 > **分支陷阱（先看这个）**：本 fork 的代码在远端 `fork`（指向 `houmu05/Lazer`）的
