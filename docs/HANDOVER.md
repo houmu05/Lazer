@@ -1,10 +1,23 @@
 # 接手须知（Handover）
 
 写给下一个接手的人或 AI：这个仓库现在是什么状态、怎么跑、从哪儿继续。
-最后更新：2026-11-07（`0.1.x` 版本线、`nextgen` 预览线 + `master` 稳定线、Windows MSI、首个 beta `v0.1.1-beta.1`）。
+最后更新：2026-11-07（`0.1.x` 版本线、`nextgen` 预览线 + `master` 稳定线、Windows MSI；beta `v0.1.1-beta.1` 已发布）。
 `master`（正式主线）与 `nextgen`（预览 beta）保持同一提交，以 `git log -1` 为准。
 **唯一工作副本是 WSL `/home/seele/workspace/Lazer`**，
 Windows 侧的副本已弃用（见 §9）。
+
+## 0. 重启上下文后的最短检查
+
+新会话/新 AI 接手时按这个顺序走，先确认状态再动手：
+
+1. `cd /home/seele/workspace/Lazer && git status && git log --oneline -3 && git branch -vv`
+   确认当前分支（本机应停在 `nextgen`，`master` 是稳定线）。
+2. `export PATH=/home/seele/toolchains/flutter-3.47.0/bin:$PATH && tool/check_toolchain.sh`
+   然后 `flutter analyze --no-pub` 与 `flutter test --no-pub`：基线是 1082 passed。
+3. `gh run list -R houmu05/Lazer --limit 5` 与 `gh release list -R houmu05/Lazer`
+   确认 CI 和 release 的最新状态；tag 构建的 `release` job 只在 `v*` tag 上跑。
+4. 读 §1 的分支模型与 §6 的发布流程；要动代码先看 `TODO.md` 与 `KNOWN-ISSUES.md`。
+5. 本工作区是唯一副本（WSL `/home/seele/workspace/Lazer`），Windows 侧副本已弃用。
 
 ## 1. 这是什么
 
@@ -16,9 +29,10 @@ Windows 侧的副本已弃用（见 §9）。
 相对上游 `origin/nextgen`（`7c56023`），远端 fork 的提交历史如下（**`master` 是稳定线，
 `nextgen` 是预览线，两者不再同提交**）：
 
-- `master`：`dd52d3a` 的稳定内容 + `a4cf519` 起的 CI 工具提交（Windows MSI 打包），不含本次功能。
-- `nextgen`：`master` 之上再加 `1874b03`（专辑拖动排序 + 喜欢排序）与 beta 版本号，当前即
-  `v0.1.1-beta.1` 的候选。功能只在 `nextgen` 验证，通过后再合回 `master` 出正式版。
+- `master`：`a4cf519`（`dd52d3a` 的稳定内容 + Windows MSI 打包工具），不含本次功能。
+- `nextgen`：`bca76bb`（`a4cf519` + 专辑拖动/喜欢排序 + beta 版本号 + 发布校验修复），
+  已打 tag `v0.1.1-beta.1`（指向 `bca76bb`），发布为 prerelease。
+  功能只在 `nextgen` 验证，通过后再合回 `master` 出正式版。
 
 历史提交（两条分支共有）：
 
@@ -163,6 +177,14 @@ CI：`.github/workflows/build.yml`，job = `check` + `windows` + `linux` + `andr
   2. 推 `nextgen` 等 check/windows/linux/android 全绿；
   3. `git tag v0.1.1-beta.1 && git push fork v0.1.1-beta.1`，等 release job 出 prerelease；
   4. 用户验证 beta 后把 `nextgen` 合回 `master`，用正式 tag（不带 `-`）再发一次。
+- **beta 结果（2026-11-07）**：`v0.1.1-beta.1` = `bca76bb`。分支构建 run `42375755393`
+  全绿（含 Windows MSI 步骤）；首轮 tag 构建 `42377195042` 因 release 校验对 DLL 名
+  多拼了一次 `.dll` 而失败，修复后 tag 重指 `bca76bb`，tag 构建 run `42379478795` 全绿。
+  发布页：<https://github.com/houmu05/Lazer/releases/tag/v0.1.1-beta.1>（Pre-release）。
+  产物：Windows ZIP（56 MB）+ MSI（55 MB，各带 sha256）、两个 Linux AppImage、Android APK。
+  已本地复核 MSI：解包含 `lazer_nextgen.exe`、`lazer-audio.dll`/bridge、FFmpeg 63 系列、
+  `libmpv-2.dll`、`licenses/`、`data/`，文件版本 `0.1.1-beta.1+9`。MSI 未签名，
+  SmartScreen 会提示"仍要运行"；`.wixpdb` 已从 release 资产中移除。
 
 ## 7. 已知坑（操作层面）
 

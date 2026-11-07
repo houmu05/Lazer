@@ -45,6 +45,7 @@ the release keystore.`），仓库变量 `LAZER_BUILD_ALL_PLATFORMS=true` 已开
 
 | 级别 | 问题 | 证据 | 影响 |
 | --- | --- | --- | --- |
+| P2 | Windows MSI 未做代码签名 | 无代码签名证书；CI 只做 WiX 打包与解包验证 | 双击安装时 SmartScreen 提示未知发布者，需"仍要运行" |
 | P1 | 平台裁剪后与上游分叉 | 删除 `ios/`、`macos/` 与 4 个 CI job；`fork/master` 与 `fork/nextgen` 均为本 fork 最新提交 | 合并上游会冲突，需要人工过 |
 | P2 | CI 每次重建 FFmpeg，Windows job 20–25 分钟 | `.github/workflows/build.yml` windows job → `native/lazer-audio/tools/build_dsd_ffmpeg.sh` | 迭代慢，浪费 runner 时间 |
 

@@ -57,7 +57,9 @@
       （WiX v3）出 `Lazer-Windows-x86_64.msi`，保留 ZIP 作为免安装版；CI 里先解包
       验证再上传，release job 再用 `msiextract` 复核引擎/FFmpeg/libmpv。
       作者文件改动时用 `Windows MSI smoke` 手动工作流（假包，几分钟）验证。
-- [ ] **发 beta 并收集反馈**：beta 版本号 `v0.1.1-beta.1`（仅 `nextgen`），
+- [x] **发 beta `v0.1.1-beta.1`（2026-11-07）**：tag 指向 `7177c59`，prerelease 由 tag 构建的
+      `release` job 发布（含 Windows ZIP+MSI、Linux AppImage×2、Android APK）。
+- [ ] **收集 beta 反馈并准备正式版**：beta 版本号 `v0.1.1-beta.1`（仅 `nextgen`），
       `pubspec.yaml` = `0.1.1-beta.1+9`、`Runner.rc` 兜底同步、`docs/releases/` 写说明；
       CI 全绿后打 tag → release job 出 prerelease（含 ZIP+MSI+AppImage+APK）。
       用户验证通过后把 `nextgen` 合回 `master`，用正式 tag（不带 `-`）再发一次。

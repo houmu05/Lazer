@@ -79,8 +79,12 @@ try {
         -out 'obj\' @sources
     if ($LASTEXITCODE -ne 0) { throw 'candle.exe failed' }
 
-    & (Join-Path $wixBin 'light.exe') -nologo -sval -out $msiPath 'obj\*.wixobj'
+    # Link into the working directory: light.exe also writes a .wixpdb next to
+    # its output, and that debug database must not end up in dist/release.
+    $built = Join-Path $work 'Lazer-Windows-x86_64.msi'
+    & (Join-Path $wixBin 'light.exe') -nologo -sval -out $built 'obj\*.wixobj'
     if ($LASTEXITCODE -ne 0) { throw 'light.exe failed' }
+    Copy-Item -LiteralPath $built -Destination $msiPath -Force
 }
 finally {
     Pop-Location
