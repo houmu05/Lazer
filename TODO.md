@@ -53,6 +53,14 @@
       `Verify the APK signature` 输出 `APK signing certificate matches the release keystore.`。
       **密钥原件 `dist/android-signing/` 仍需离线备份**（见 `KNOWN-ISSUES.md` 已解决小节），
       CI 只存可重建的 secrets，不保管密钥文件。
+- [x] **Windows MSI 安装包**：`ci/package-windows-msi.ps1` + `ci/windows/lazer.wxs`
+      （WiX v3）出 `Lazer-Windows-x86_64.msi`，保留 ZIP 作为免安装版；CI 里先解包
+      验证再上传，release job 再用 `msiextract` 复核引擎/FFmpeg/libmpv。
+      作者文件改动时用 `Windows MSI smoke` 手动工作流（假包，几分钟）验证。
+- [ ] **发 beta 并收集反馈**：beta 版本号 `v0.1.1-beta.1`（仅 `nextgen`），
+      `pubspec.yaml` = `0.1.1-beta.1+9`、`Runner.rc` 兜底同步、`docs/releases/` 写说明；
+      CI 全绿后打 tag → release job 出 prerelease（含 ZIP+MSI+AppImage+APK）。
+      用户验证通过后把 `nextgen` 合回 `master`，用正式 tag（不带 `-`）再发一次。
 - [ ] **上游同步策略**（需人决定）：`master` 是默认分支与正式版主线，`nextgen` 是
       预览/beta；`review/2026-11-04` 已删除，两分支都包含原 review 的全部提交。
       上游 `origin/nextgen` 仍是 `7c56023`；本地 `nextgen` 可能还跟踪着上游

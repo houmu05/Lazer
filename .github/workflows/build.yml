@@ -172,6 +172,14 @@ jobs:
             Pop-Location
             Remove-Item -LiteralPath $probe -Force
           }
+      - name: Build the Windows MSI installer
+        shell: pwsh
+        run: |
+          ./ci/package-windows-msi.ps1 -ReleaseDir build/windows/x64/runner/Release
+          $msi = 'dist/Lazer-Windows-x86_64.msi'
+          if (-not (Test-Path -LiteralPath $msi)) { throw 'The MSI was not produced' }
+          $hash = (Get-FileHash -LiteralPath $msi -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash  Lazer-Windows-x86_64.msi" | Set-Content -LiteralPath "$msi.sha256" -Encoding ascii
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: Lazer-Windows-x86_64
@@ -436,6 +444,29 @@ jobs:
             done
             echo "$zip carries the native engine"
           done
+      - name: Verify the Windows MSI carries the native engine
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          # The Windows job extracts the MSI itself; this reads the uploaded
+          # package, so a packaging step cannot drop the engine on the way out.
+          msis=(release-assets/Lazer-Windows-*/*.msi)
+          test "${#msis[@]}" -gt 0 || { echo "::error::the Windows artifact has no MSI"; exit 1; }
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq msitools
+          for msi in "${msis[@]}"; do
+            rm -rf /tmp/lazer-msi-check
+            msiextract -C /tmp/lazer-msi-check "$msi" >/dev/null
+            find /tmp/lazer-msi-check -name 'lazer_nextgen.exe' -print -quit | grep -q . \
+              || { echo "::error::$msi carries no lazer_nextgen.exe"; exit 1; }
+            for component in lazer-audio.dll lazer-audio-bridge.dll avcodec avformat avutil swresample libmpv; do
+              find /tmp/lazer-msi-check -name "*${component}*.dll" -print -quit | grep -q . \
+                || { echo "::error::$msi carries no $component"; exit 1; }
+            done
+            echo "$msi carries the native engine"
+          done
+
       - name: Publish tag as a GitHub Release
         shell: bash
         env:

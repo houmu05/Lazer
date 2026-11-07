@@ -15,12 +15,23 @@ macOS and iOS are out of scope for now.
 | Artifact / filename stem | Format and contents |
 | --- | --- |
 | `Lazer-Windows-x86_64` | ZIP with EXE, native audio engine, FFmpeg, resources and the MSVC runtime |
+| `Lazer-Windows-x86_64` (MSI) | Per-machine installer with the same bundle, Start Menu shortcut and an ARP entry; built by WiX and extracted once before upload |
 | `Lazer-Linux-x86_64` | x86_64 AppImage with GTK, libmpv and the native audio engine |
 | `Lazer-Linux-aarch64` | ARM64 AppImage with GTK, libmpv and the native audio engine |
 | `Lazer-Android-universal` | Universal release APK signed with the release key from repository secrets |
 
 All artifact names follow `Lazer-<OS>-<Arch>`. `universal` denotes a multi-architecture
 package. Architecture checks run before packaging.
+
+The Windows job ships two forms of the same bundle: `Lazer-Windows-x86_64.zip`
+(portable, extract and run) and `Lazer-Windows-x86_64.msi` (per-machine install).
+`ci/package-windows-msi.ps1` installs the WiX toolset on the runner, harvests
+the built release directory with `heat.exe` and links the MSI; it then extracts
+the package administratively and refuses to upload one that does not contain
+`lazer_nextgen.exe`. `ci/windows/lazer.wxs` holds the authoring (Start Menu
+shortcut, product icon, major-upgrade rule). A `Windows MSI smoke` workflow can
+be dispatched by hand to rebuild the MSI from a dummy bundle in a couple of
+minutes when the authoring changes.
 
 ## Native audio engine
 

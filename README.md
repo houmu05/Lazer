@@ -102,13 +102,14 @@ flutter run
 
 | 产物 | 说明 |
 | --- | --- |
-| `Lazer-Windows-x86_64.zip` | EXE、依赖库、资源与 Visual C++ 运行库 |
+| `Lazer-Windows-x86_64.zip` | EXE、依赖库、资源与 Visual C++ 运行库（免安装） |
+| `Lazer-Windows-x86_64.msi` | Windows 安装包：开始菜单快捷方式、卸载项；内容与 ZIP 相同 |
 | `Lazer-Linux-x86_64.AppImage` | Linux x86_64，包含 GTK 与 libmpv |
 | `Lazer-Linux-aarch64.AppImage` | Linux ARM64，使用原生 ARM runner 构建 |
 | `Lazer-Android-universal.apk` | 通用 APK，使用仓库密钥库中的发布签名（详见[构建说明](docs/builds.md#android-release-signing)） |
 
 构建完成后，在对应运行页面的 **Artifacts** 中下载，需登录 GitHub，保留 30 天。
-Windows 请完整解压后运行；AppImage 下载后先 `chmod +x`。
+Windows 免安装版请完整解压后运行；安装版直接双击 MSI；AppImage 下载后先 `chmod +x`。
 
 更多说明书：[构建说明](docs/builds.md) · [系统媒体控件](docs/system-media.md) · [正在播放](docs/now-playing.md) · [定时停止](docs/scheduled-pause.md) · [车机形态](docs/car-head-unit.md) · [大屏幕模式（Android TV）](docs/android-tv.md) · [扫码登录](docs/login-qr.md) · [验证码登录](docs/login-sms.md) · [统一界面](docs/ui.md)
 

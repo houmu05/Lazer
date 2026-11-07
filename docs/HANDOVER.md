@@ -1,7 +1,7 @@
 # 接手须知（Handover）
 
 写给下一个接手的人或 AI：这个仓库现在是什么状态、怎么跑、从哪儿继续。
-最后更新：2026-11-07（`0.1.x` 版本线 + `master`/`nextgen` 双分支模型；本次加入专辑拖动排序与喜欢排序）。
+最后更新：2026-11-07（`0.1.x` 版本线、`nextgen` 预览线 + `master` 稳定线、Windows MSI、首个 beta `v0.1.1-beta.1`）。
 `master`（正式主线）与 `nextgen`（预览 beta）保持同一提交，以 `git log -1` 为准。
 **唯一工作副本是 WSL `/home/seele/workspace/Lazer`**，
 Windows 侧的副本已弃用（见 §9）。
@@ -13,7 +13,14 @@ Windows 侧的副本已弃用（见 §9）。
 2.0 客户端（网易云音乐第三方客户端，WEAPI/EAPI 自带、原生 Hi-Fi 音频引擎）。
 上游 `origin/master` 是 Kotlin 的 1.5 老客户端，本 fork 不维护它，注意别与主线同名混淆。
 
-相对上游 `origin/nextgen`（`7c56023`），远端 fork 的 `master` 与 `nextgen` 都指向下面这串提交的最新一条：
+相对上游 `origin/nextgen`（`7c56023`），远端 fork 的提交历史如下（**`master` 是稳定线，
+`nextgen` 是预览线，两者不再同提交**）：
+
+- `master`：`dd52d3a` 的稳定内容 + `a4cf519` 起的 CI 工具提交（Windows MSI 打包），不含本次功能。
+- `nextgen`：`master` 之上再加 `1874b03`（专辑拖动排序 + 喜欢排序）与 beta 版本号，当前即
+  `v0.1.1-beta.1` 的候选。功能只在 `nextgen` 验证，通过后再合回 `master` 出正式版。
+
+历史提交（两条分支共有）：
 
 | 提交 | 内容 |
 | --- | --- |
@@ -31,6 +38,8 @@ Windows 侧的副本已弃用（见 §9）。
 | `5c99480` | LAN 遥控器安全硬化：限制 LAN 来源、Origin 改由服务端构造、令牌改走 `Authorization` 头 + 6 条回归 |
 | `b0ed292` | 删除冗余 import（CI analyzer 修复） |
 | 最新一条（`git log -1`） | 关于页与检查更新统一指向本 fork、`.gitignore` 补密钥规则、交接文档 |
+| `1874b03`（仅 `nextgen`） | 资料库「专辑」长按/鼠标拖动排序（`lazer_album_order`）+「我喜欢」按歌曲/歌手排序（`lazer_liked_sort`），+8 个测试 |
+| `a4cf519`（`master`/`nextgen`） | Windows MSI 工具链：`ci/package-windows-msi.ps1` + `ci/windows/lazer.wxs` + `Windows MSI smoke` 工作流 |
 | 2026-11-07（`git log -1`） | 资料库「专辑」支持长按/鼠标拖动排序（`lazer_album_order`，通用可排序网格）；「我喜欢的音乐」新增按歌曲名称/歌手名称排序（`lazer_liked_sort`），+8 个测试 |
  
 > **分支陷阱（先看这个）**：本 fork 的代码在远端 `fork`（指向 `houmu05/Lazer`）的
@@ -131,8 +140,14 @@ CI：`.github/workflows/build.yml`，job = `check` + `windows` + `linux` + `andr
   或 `gh workflow run build.yml --ref <branch> -R houmu05/Lazer`。
   fork 的 Actions 需要先在网页 Actions 页启用一次（若报 workflow 404 就是这个原因）。
 - Windows job 约 20–25 分钟，大头是每次现场编 FFmpeg（`native/lazer-audio/tools/build_dsd_ffmpeg.sh`）。
-- 产物：`Lazer-Windows-x86_64.zip`、两个 `Lazer-Linux-*.AppImage`、`Lazer-Android-universal.apk`；
+- 产物：`Lazer-Windows-x86_64.zip`（免安装）、`Lazer-Windows-x86_64.msi`（安装版）、
+  两个 `Lazer-Linux-*.AppImage`、`Lazer-Android-universal.apk`；
   下载：`gh run download <run_id> -R houmu05/Lazer -D dist/ci`，每个包都有 `.sha256`。
+- Windows MSI：`ci/package-windows-msi.ps1` + `ci/windows/lazer.wxs`（WiX v3：开始菜单
+  快捷方式、ARP 图标、MajorUpgrade）。脚本会先 `msiexec /a` 解包验证包内含
+  `lazer_nextgen.exe` 才允许上传；`release` job 还会在 Linux 上用 `msiextract` 再验一次
+  引擎/FFmpeg/libmpv 是否在包里。作者文件改动时可用手动工作流 `Windows MSI smoke`
+  用假包在几分钟内验证，不必跑完整 Windows 构建。
 - Android 签名：**4 个 secrets 已配置**（`ANDROID_KEYSTORE_BASE64`、
   `ANDROID_KEYSTORE_PASSWORD`、`ANDROID_KEY_ALIAS`、`ANDROID_KEY_PASSWORD`），
   分支与 tag 构建都是正式签名。密钥原件在 `dist/android-signing/`
@@ -140,14 +155,20 @@ CI：`.github/workflows/build.yml`，job = `check` + `windows` + `linux` + `andr
   **必须离线备份**：它是应用更新的信任根，丢失后已安装版本永远无法就地升级。
   tag 构建缺 secrets 会直接失败（`build.yml:326-329`）。
 - 最近一次全量成功：run `41837109045`（head `b0ed292`，正式签名验证），4 个产物齐全。
-- 发布：打 `v*` tag 并推送 → `release` job 下载四个产物、校验桌面包内含原生引擎、
-  创建 GitHub Release。tag 名含 `-` 会被标为 prerelease。
+- 发布：打 `v*` tag 并推送 → `release` job 下载全部产物（ZIP、MSI、AppImage、APK）、
+  校验 ZIP 与 MSI 内含原生引擎、创建 GitHub Release。tag 名含 `-` 会被标为 prerelease。
+  流程：
+  1. beta：在 `nextgen` 上把 `pubspec.yaml` 版本名改成 tag 去掉 `v`、`+N` 递增，
+     同步 `windows/runner/Runner.rc` 兜底值，写 `docs/releases/<tag>.md`；
+  2. 推 `nextgen` 等 check/windows/linux/android 全绿；
+  3. `git tag v0.1.1-beta.1 && git push fork v0.1.1-beta.1`，等 release job 出 prerelease；
+  4. 用户验证 beta 后把 `nextgen` 合回 `master`，用正式 tag（不带 `-`）再发一次。
 
 ## 7. 已知坑（操作层面）
 
 - 本机没有 Windows/Android 工具链；Windows 包只能由 CI 出，Linux 包需要 GTK/clang/libmpv 等系统依赖。
-- fork 与上游已分叉：远端 `fork/master`（默认分支）与 `fork/nextgen` 是本文档所在提交，
-  上游 `origin/nextgen` 是 `7c56023`；
+- fork 与上游已分叉：远端 `fork/master` 是稳定线（MSI 工具链提交），`fork/nextgen` 是
+  预览线（本次功能 + beta 版本），上游 `origin/nextgen` 仍是 `7c56023`；
   本地 `nextgen` 可能还跟踪着 `origin/nextgen`（见 §1 的分支陷阱）。合并上游会因删除
   `ios/`、`macos/` 与文档改写而冲突，同步策略见 `TODO.md`。
 - Windows 测试的是新包还是旧包：看文件名旁的 commit/时间，或进设置页 About 看构建信息。
@@ -204,10 +225,10 @@ CI：`.github/workflows/build.yml`，job = `check` + `windows` + `linux` + `andr
    已发布的 `v0.1.0` 产物元数据不可追溯修改，仍显示旧版本号；从 `v0.1.1` 起才在产物上一致。
    **发版纪律**：打 tag 前同步 `pubspec.yaml`（版本名 = tag 去掉 `v`、`+N` 只增）、
    `BuildInfo` 兜底值与 `docs/releases/<tag>.md`；正式 tag 从 `master` 打，beta 从 `nextgen` 打。
-2. **收藏专辑没有歌单那样的长按拖动排序**：歌单走
-   `lib/ui/library_page.dart:160-167` 的 `_PlaylistRowsSliver(onReorder:)` +
-   `AppState.setPlaylistOrder`（持久化键 `lazer_playlist_order`）；专辑是
-   `:231-248` 的纯 `SliverGrid.builder`，`AppState` 无排序状态。实现时还要处理
-   `:1352-1370` 的分页追加与 `:1912` 的会话重置，避免用户顺序被冲掉。
+2. **收藏专辑拖动排序与喜欢排序（2026-11-07 已实现，仅在 `nextgen`）**：
+   歌单拖拽网格抽成通用 `_ReorderableItemsSliver<T>`，专辑复用同一套拖拽/预览/落位；
+   `AppState` 增加 `albumOrder`（`lazer_album_order`）与 `likedSort`（`lazer_liked_sort`）。
+   回归：`test/library_album_order_test.dart`、`test/liked_sort_test.dart`。
+   版本号提到 `0.1.1-beta.1+9`，beta tag 从 `nextgen` 出；验证后合回 `master` 出正式版。
 
 证据、影响与验收标准见 `KNOWN-ISSUES.md`「版本 / 发布口径」「功能缺口」两节。

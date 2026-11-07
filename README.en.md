@@ -106,14 +106,16 @@ marked as pre-releases. Output filenames follow `Lazer-<OS>-<Arch>`.
 
 | Output | Contents |
 | --- | --- |
-| `Lazer-Windows-x86_64.zip` | EXE, DLLs, resources and Visual C++ runtime |
+| `Lazer-Windows-x86_64.zip` | EXE, DLLs, resources and Visual C++ runtime (portable) |
+| `Lazer-Windows-x86_64.msi` | Windows installer: Start Menu shortcut and uninstall entry, same bundle as the ZIP |
 | `Lazer-Linux-x86_64.AppImage` | Linux x86_64, including GTK and libmpv |
 | `Lazer-Linux-aarch64.AppImage` | Linux ARM64 built on a native ARM runner |
 | `Lazer-Android-universal.apk` | Universal APK signed with the release key from repository secrets (see [build details](docs/builds.md#android-release-signing)) |
 
 Download from a completed run's **Artifacts** section while signed in to GitHub;
 artifacts are retained for 30 days. Extract the complete Windows ZIP before
-launching its EXE, and run `chmod +x` on a downloaded AppImage.
+launching its EXE, or run the MSI to install it; run `chmod +x` on a downloaded
+AppImage.
 
 More documentation: [build details](docs/builds.md) · [system media](docs/system-media.md) · [now playing](docs/now-playing.md) · [scheduled pause](docs/scheduled-pause.md) · [car head unit](docs/car-head-unit.md) · [large screen mode (Android TV)](docs/android-tv.md) · [QR sign-in](docs/login-qr.md) · [SMS sign-in](docs/login-sms.md) · [unified interface](docs/ui.md)
 
