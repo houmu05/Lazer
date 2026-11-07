@@ -30,8 +30,9 @@ Windows 侧的副本已弃用（见 §9）。
 `nextgen` 是预览线，两者不再同提交**）：
 
 - `master`：`4b4d582`（`dd52d3a` 的稳定内容 + Windows MSI 打包工具及其修复提交），不含本次功能。
-- `nextgen`：`bca76bb`（`a4cf519` + 专辑拖动/喜欢排序 + beta 版本号 + 发布校验修复），
-  已打 tag `v0.1.1-beta.1`（指向 `bca76bb`），发布为 prerelease。
+- `nextgen`：预览线（`master` + 专辑拖动/喜欢排序 + beta 版本号 + 发布校验修复），
+  tag `v0.1.1-beta.1` 指向 **`bca76bb`**（已发布的构建）；`nextgen` 头在这之后只有文档提交，
+  以 `git log -1` 为准。功能验证通过后把 `nextgen` 合回 `master` 出正式版。
   功能只在 `nextgen` 验证，通过后再合回 `master` 出正式版。
 
 历史提交（两条分支共有）：
