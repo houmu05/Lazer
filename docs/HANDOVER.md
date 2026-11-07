@@ -30,8 +30,8 @@ Windows 侧的副本已弃用（见 §9）。
 `nextgen` 是预览线，两者不再同提交**）：
 
 - `master`：`4b4d582`（`dd52d3a` 的稳定内容 + Windows MSI 打包工具及其修复提交），不含本次功能。
-- `nextgen`：预览线（`master` + 专辑拖动/喜欢排序 + beta 版本号 + 发布校验修复），
-  tag `v0.1.1-beta.1` 指向 **`bca76bb`**（已发布的构建）；`nextgen` 头在这之后只有文档提交，
+- `nextgen`：预览线（`master` + 专辑拖动/喜欢排序 + beta 版本号 + 发布修复），
+  tag `v0.1.1-beta.2` 指向 **`e701279`**（当前已发布构建）；`nextgen` 头在这之后只有文档提交，
   以 `git log -1` 为准。功能验证通过后把 `nextgen` 合回 `master` 出正式版。
   功能只在 `nextgen` 验证，通过后再合回 `master` 出正式版。
 
@@ -178,8 +178,12 @@ CI：`.github/workflows/build.yml`，job = `check` + `windows` + `linux` + `andr
   2. 推 `nextgen` 等 check/windows/linux/android 全绿；
   3. `git tag v0.1.1-beta.1 && git push fork v0.1.1-beta.1`，等 release job 出 prerelease；
   4. 用户验证 beta 后把 `nextgen` 合回 `master`，用正式 tag（不带 `-`）再发一次。
-- **beta.2（2026-11-07）**：修复 beta.1 的「喜欢排序入口只出现在‘我喜欢’页面」与
-  「头部曲目数与列表不一致」，版本 `0.1.1-beta.2+10`；tag 与 release 见本节末尾。
+- **beta.2（2026-11-07）**：`v0.1.1-beta.2` = `e701279`，tag 构建 run `42385634404` 全绿，
+  已发布 prerelease：<https://github.com/houmu05/Lazer/releases/tag/v0.1.1-beta.2>。
+  修复 beta.1 的「喜欢排序入口只出现在‘我喜欢’页面」（桌面侧边栏点同名收藏进的是普通
+  歌单页，`shell.dart` 的 `_openPlaylist` 没传 sortable；现在页面按喜欢集合自动识别）与
+  「头部曲目数显示账号摘要的旧值、与列表差一首」。MSI 已本地复核：
+  版本 `0.1.1-beta.2+10`，含引擎/libmpv，`.wixpdb` 不再混进资产。
 - **beta 结果（2026-11-07）**：`v0.1.1-beta.1` = `bca76bb`。分支构建 run `42375755393`
   全绿（含 Windows MSI 步骤）；首轮 tag 构建 `42377195042` 因 release 校验对 DLL 名
   多拼了一次 `.dll` 而失败，修复后 tag 重指 `bca76bb`，tag 构建 run `42379478795` 全绿。
