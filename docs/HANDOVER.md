@@ -118,8 +118,8 @@ flutter test --no-pub            # 必须全绿（约 4 分钟）；数字口径
 里的 1056 是审查当时的历史快照。2026-11-04 的安全修复又加了 9 条回归（更新检查 3、
 LAN 遥控器 6），静态调用点现为 **954**（159 个测试文件）。2026-11-05 的 CI
 （run `41978492846` / `41978501274`）在 `master` 与 `nextgen` 上分别实测
-**`flutter analyze --no-pub` = 0 issues、`flutter test --no-pub` = 1082 passed / 0 failed**。
-当前基线就是 **1082**（962 个调用点、161 个测试文件）；1074、1065 与 1056 都是历史快照，本地复跑若数字不同，先查是否有新增用例。
+**`flutter analyze --no-pub` = 0 issues、`flutter test --no-pub` = 1084 passed / 0 failed**。
+当前基线就是 **1084**（964 个调用点、161 个测试文件）；1082、1074、1065 与 1056 都是历史快照，本地复跑若数字不同，先查是否有新增用例。
 
 ## 4. 当前功能边界
 
@@ -178,6 +178,8 @@ CI：`.github/workflows/build.yml`，job = `check` + `windows` + `linux` + `andr
   2. 推 `nextgen` 等 check/windows/linux/android 全绿；
   3. `git tag v0.1.1-beta.1 && git push fork v0.1.1-beta.1`，等 release job 出 prerelease；
   4. 用户验证 beta 后把 `nextgen` 合回 `master`，用正式 tag（不带 `-`）再发一次。
+- **beta.2（2026-11-07）**：修复 beta.1 的「喜欢排序入口只出现在‘我喜欢’页面」与
+  「头部曲目数与列表不一致」，版本 `0.1.1-beta.2+10`；tag 与 release 见本节末尾。
 - **beta 结果（2026-11-07）**：`v0.1.1-beta.1` = `bca76bb`。分支构建 run `42375755393`
   全绿（含 Windows MSI 步骤）；首轮 tag 构建 `42377195042` 因 release 校验对 DLL 名
   多拼了一次 `.dll` 而失败，修复后 tag 重指 `bca76bb`，tag 构建 run `42379478795` 全绿。

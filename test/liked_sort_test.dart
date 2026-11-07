@@ -186,4 +186,55 @@ void main() {
       <String>['1', '2', '3'],
     );
   });
+  testWidgets('the liked collection sorted from any entry point', (
+    tester,
+  ) async {
+    final AppState state = await _signedIn(tester);
+    // The sidebar opens the liked playlist through the plain playlist page,
+    // without the sortable flag the 我喜欢 section passes.
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildAppleTheme(brightness: Brightness.dark),
+        home: Scaffold(
+          body: AnimatedBuilder(
+            animation: state,
+            builder: (BuildContext context, _) =>
+                AppPlaylistPage(state: state, playlist: _liked),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byTooltip('排序方式'), findsOneWidget);
+    await state.setLikedSort(LikedSortOrder.title);
+    await tester.pumpAndSettle();
+    expect(_rowOrder(tester), <String>['alpha', 'Bravo', 'Charlie']);
+  });
+
+  testWidgets('the header count follows the loaded rows', (tester) async {
+    final AppState state = await _signedIn(tester);
+    // A stale account summary says 99 songs; three rows is the truth.
+    const Playlist stale = Playlist(
+      id: 'liked',
+      name: '我喜欢的音乐',
+      trackIds: <String>[],
+      coverSeed: 1,
+      trackCount: 99,
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildAppleTheme(brightness: Brightness.dark),
+        home: Scaffold(
+          body: AnimatedBuilder(
+            animation: state,
+            builder: (BuildContext context, _) =>
+                AppPlaylistPage(state: state, playlist: stale, sortable: true),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('3 首歌曲'), findsOneWidget);
+    expect(find.text('99 首歌曲'), findsNothing);
+  });
 }

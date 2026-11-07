@@ -18,7 +18,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # of the product and file versions while build-number is used as the build suffix.
 # The fork uses the 0.1.x version line. The +N suffix is Android's
 # versionCode and must never decrease: v0.1.0 shipped as +7.
-version: 0.1.1-beta.1+9
+version: 0.1.1-beta.2+10
 
 environment:
   sdk: ^3.12.0

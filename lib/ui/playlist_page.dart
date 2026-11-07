@@ -91,12 +91,21 @@ class _AppPlaylistPageState extends State<AppPlaylistPage> {
   /// the queue built from a tap and the locator all agree.
   List<Track>? get _displayTracks {
     final List<Track>? raw = _tracks;
-    if (raw == null || !widget.sortable) return raw;
+    if (raw == null || !_sortable) return raw;
     return sortLikedTracks(raw, widget.state.likedSort);
   }
 
   /// Sort the row metrics were built for, so a change of order rebuilds them.
   LikedSortOrder? _metricsSort;
+
+  /// Whether the rows can be re-ordered.
+  ///
+  /// The explicit flag covers the 我喜欢 section; opening the liked collection
+  /// from the sidebar rail or a link lands on this page without that flag, and
+  /// that entry point must offer the same menu.
+  bool get _sortable =>
+      widget.sortable ||
+      widget.playlist.id == widget.state.collections.liked?.id;
   String? _note;
   String? _error;
   List<double>? _rowTops;
@@ -234,7 +243,7 @@ class _AppPlaylistPageState extends State<AppPlaylistPage> {
   }
 
   void _ensureRowMetrics() {
-    if (widget.sortable && _metricsSort != widget.state.likedSort) {
+    if (_sortable && _metricsSort != widget.state.likedSort) {
       _metricsDirty = true;
       _metricsSort = widget.state.likedSort;
     }
@@ -411,6 +420,7 @@ class _AppPlaylistPageState extends State<AppPlaylistPage> {
                                 ),
                           note: _note ?? widget.album?.note,
                           noteIsData: _note != null,
+                          trackCountOverride: tracks?.length,
                           onPlay: tracks == null || tracks.isEmpty
                               ? null
                               : () => widget.state.playQueue(tracks),
@@ -443,7 +453,7 @@ class _AppPlaylistPageState extends State<AppPlaylistPage> {
                           AppSectionHeader(
                             title: '歌曲',
                             subtitle: '${tracks.length} 首',
-                            trailing: widget.sortable
+                            trailing: _sortable
                                 ? PopupMenuButton<LikedSortOrder>(
                                     tooltip: context.tr('排序方式'),
                                     initialValue: widget.state.likedSort,
@@ -577,6 +587,7 @@ class AppPlaylistHeader extends StatelessWidget {
     this.cover,
     this.transitionIdentity,
     this.showShuffle = true,
+    this.trackCountOverride,
   });
 
   final Playlist playlist;
@@ -587,6 +598,11 @@ class AppPlaylistHeader extends StatelessWidget {
   final Widget? cover;
   final String? transitionIdentity;
   final bool showShuffle;
+
+  /// Loaded row count, which wins over the catalogue's collection count: the
+  /// liked list can gain a song after the account summary was fetched, and the
+  /// header must not disagree with the rows below it.
+  final int? trackCountOverride;
 
   /// Album-only extras. A playlist leaves both null and renders as before.
   final String? artist;
@@ -714,8 +730,10 @@ class AppPlaylistHeader extends StatelessWidget {
             role: CoverTextRole.detail,
             child: Text(
               <String>[
-                if (playlist.trackCount > 0)
-                  context.tr('${playlist.trackCount} 首歌曲'),
+                if ((trackCountOverride ?? playlist.trackCount) > 0)
+                  context.tr(
+                    '${trackCountOverride ?? playlist.trackCount} 首歌曲',
+                  ),
                 if (playlist.description.isNotEmpty) playlist.description,
               ].join(' · '),
               maxLines: 2,
