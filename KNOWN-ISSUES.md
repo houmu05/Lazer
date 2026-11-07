@@ -32,7 +32,6 @@ README 版本徽章改为动态读取 GitHub 最新 release。
 | 级别 | 问题 | 证据 | 影响 |
 | --- | --- | --- | --- |
 | P1 | 资料库只有「收藏专辑」，没有官方客户端的「已购专辑」tab | 官方客户端截图 vs `lib/ui/library_page.dart` 当前只渲染一个列表；`/album/sublist` 响应的 `paidCount` 语义未实测 | 已购专辑看不到 |
-| P2 | 收藏专辑没有歌单那样的长按拖动排序 | 歌单：`lib/ui/library_page.dart:160-167` 用 `_PlaylistRowsSliver(onReorder:)` → `AppState.setPlaylistOrder`（`lib/state/app_state.dart:612-632`，持久化键 `lazer_playlist_order`），标题副文案「长按拖动排序」（`:117`）；专辑：`:231-248` 是纯 `SliverGrid.builder` + `_AlbumCard`（`:1077-1090` 只有 `onTap`），标题只有刷新按钮，`AppState` 无 `albumOrder` 对应物（`:1213` 的 `libraryAlbums` 直接按服务端顺序渲染） | 收藏专辑只能按接口返回顺序显示，无法自定义；与歌单交互不一致 |
 | P2 | v1.5（上游 `origin/master`）「我喜欢」列表上限 1000 | Kotlin `LazerPlaybackQueue.MAX_TRACKS = 1_000`，`loadCompletePlaylist` 取 `min(trackCount, 1000)` | 只影响老客户端；本 fork 的 Flutter 客户端已验证 1154 首完整加载（`test/liked_tracks_test.dart`） |
 
 专辑排序还要处理分页：`:1352-1370` 的 `loadLibraryAlbums(more: true)` 会追加新页，

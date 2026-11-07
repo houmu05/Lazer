@@ -1,7 +1,7 @@
 # 接手须知（Handover）
 
 写给下一个接手的人或 AI：这个仓库现在是什么状态、怎么跑、从哪儿继续。
-最后更新：2026-11-05（`0.1.x` 版本线 + `master`/`nextgen` 双分支模型）。
+最后更新：2026-11-07（`0.1.x` 版本线 + `master`/`nextgen` 双分支模型；本次加入专辑拖动排序与喜欢排序）。
 `master`（正式主线）与 `nextgen`（预览 beta）保持同一提交，以 `git log -1` 为准。
 **唯一工作副本是 WSL `/home/seele/workspace/Lazer`**，
 Windows 侧的副本已弃用（见 §9）。
@@ -31,6 +31,7 @@ Windows 侧的副本已弃用（见 §9）。
 | `5c99480` | LAN 遥控器安全硬化：限制 LAN 来源、Origin 改由服务端构造、令牌改走 `Authorization` 头 + 6 条回归 |
 | `b0ed292` | 删除冗余 import（CI analyzer 修复） |
 | 最新一条（`git log -1`） | 关于页与检查更新统一指向本 fork、`.gitignore` 补密钥规则、交接文档 |
+| 2026-11-07（`git log -1`） | 资料库「专辑」支持长按/鼠标拖动排序（`lazer_album_order`，通用可排序网格）；「我喜欢的音乐」新增按歌曲名称/歌手名称排序（`lazer_liked_sort`），+8 个测试 |
  
 > **分支陷阱（先看这个）**：本 fork 的代码在远端 `fork`（指向 `houmu05/Lazer`）的
 > **`master`** 上（默认分支），`nextgen` 是同提交的预览分支。本地 clone 的 `nextgen`
@@ -93,8 +94,8 @@ flutter test --no-pub            # 必须全绿（约 4 分钟）；数字口径
 里的 1056 是审查当时的历史快照。2026-11-04 的安全修复又加了 9 条回归（更新检查 3、
 LAN 遥控器 6），静态调用点现为 **954**（159 个测试文件）。2026-11-05 的 CI
 （run `41978492846` / `41978501274`）在 `master` 与 `nextgen` 上分别实测
-**`flutter analyze --no-pub` = 0 issues、`flutter test --no-pub` = 1074 passed / 0 failed**。
-当前基线就是 **1074**，1065 与 1056 都是历史快照；本地复跑若数字不同，先查是否有新增用例。
+**`flutter analyze --no-pub` = 0 issues、`flutter test --no-pub` = 1082 passed / 0 failed**。
+当前基线就是 **1082**（962 个调用点、161 个测试文件）；1074、1065 与 1056 都是历史快照，本地复跑若数字不同，先查是否有新增用例。
 
 ## 4. 当前功能边界
 

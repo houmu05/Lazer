@@ -57,6 +57,10 @@ class AppLibraryPage extends StatelessWidget {
     final List<Playlist> publicLists = uniquePlaylists(
       state.home?.playlists ?? const <Playlist>[],
     );
+    final List<Album> albums = _arrangeAlbums(
+      state.libraryAlbums,
+      state.albumOrder,
+    );
     final double inset = pageInset(context);
     return Center(
       child: ConstrainedBox(
@@ -155,12 +159,20 @@ class AppLibraryPage extends StatelessWidget {
                 if (mine.isNotEmpty)
                   SliverPadding(
                     padding: EdgeInsets.symmetric(horizontal: inset),
-                    sliver: _PlaylistRowsSliver(
-                      playlists: mine,
+                    sliver: _ReorderableItemsSliver<Playlist>(
+                      items: mine,
                       columns: columns,
                       cell: cell,
                       gap: gap,
-                      onOpen: onOpenPlaylist,
+                      idOf: (Playlist playlist) => playlist.id,
+                      tile: (BuildContext context, Playlist playlist) =>
+                          AppPlaylistCard(
+                            playlist: playlist,
+                            width: cell,
+                            onTap: () => onOpenPlaylist(playlist),
+                          ),
+                      still: (Playlist playlist, double side) =>
+                          _PlaylistDragStill(playlist: playlist, side: side),
                       onReorder: (List<String> order) =>
                           unawaited(state.setPlaylistOrder(order)),
                     ),
@@ -177,6 +189,7 @@ class AppLibraryPage extends StatelessWidget {
                       children: <Widget>[
                         AppSectionHeader(
                           title: '专辑',
+                          subtitle: albums.length > 1 ? '长按拖动排序' : null,
                           trailing: IconButton(
                             tooltip: context.tr('刷新'),
                             onPressed: () =>
@@ -229,22 +242,21 @@ class AppLibraryPage extends StatelessWidget {
                       child: AppNotice(message: '暂无专辑'),
                     ),
                   ),
-                if (state.signedIn && state.libraryAlbums.isNotEmpty)
+                if (state.signedIn && albums.isNotEmpty)
                   SliverPadding(
                     padding: EdgeInsets.symmetric(horizontal: inset),
-                    sliver: SliverGrid.builder(
-                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: albumColumns,
-                        mainAxisSpacing: 18,
-                        crossAxisSpacing: 18,
-                        mainAxisExtent: albumCell + 52,
-                      ),
-                      itemCount: state.libraryAlbums.length,
-                      itemBuilder: (BuildContext context, int index) =>
-                          _AlbumCard(
-                            album: state.libraryAlbums[index],
-                            state: state,
-                          ),
+                    sliver: _ReorderableItemsSliver<Album>(
+                      items: albums,
+                      columns: albumColumns,
+                      cell: albumCell,
+                      gap: 18,
+                      idOf: (Album album) => album.id,
+                      tile: (BuildContext context, Album album) =>
+                          _AlbumCard(album: album, state: state),
+                      still: (Album album, double side) =>
+                          _AlbumDragStill(album: album, side: side),
+                      onReorder: (List<String> order) =>
+                          unawaited(state.setAlbumOrder(order)),
                     ),
                   ),
                 if (state.signedIn && state.libraryAlbumsMore)
@@ -281,12 +293,20 @@ class AppLibraryPage extends StatelessWidget {
                 if (publicLists.isNotEmpty)
                   SliverPadding(
                     padding: EdgeInsets.symmetric(horizontal: inset),
-                    sliver: _PlaylistRowsSliver(
-                      playlists: publicLists,
+                    sliver: _ReorderableItemsSliver<Playlist>(
+                      items: publicLists,
                       columns: columns,
                       cell: cell,
                       gap: gap,
-                      onOpen: onOpenPlaylist,
+                      idOf: (Playlist playlist) => playlist.id,
+                      tile: (BuildContext context, Playlist playlist) =>
+                          AppPlaylistCard(
+                            playlist: playlist,
+                            width: cell,
+                            onTap: () => onOpenPlaylist(playlist),
+                          ),
+                      still: (Playlist playlist, double side) =>
+                          _PlaylistDragStill(playlist: playlist, side: side),
                     ),
                   ),
                 if (mine.isEmpty && publicLists.isEmpty)
@@ -328,31 +348,44 @@ class AppLibraryPage extends StatelessWidget {
 /// or back onto its own slot when it is released anywhere else. A mouse or
 /// stylus skips the hold: there is no scroll gesture to protect there, so the
 /// card follows the pointer as soon as it moves.
-class _PlaylistRowsSliver extends StatefulWidget {
-  const _PlaylistRowsSliver({
-    required this.playlists,
+class _ReorderableItemsSliver<T> extends StatefulWidget {
+  const _ReorderableItemsSliver({
+    required this.items,
     required this.columns,
     required this.cell,
     required this.gap,
-    required this.onOpen,
+    required this.idOf,
+    required this.tile,
+    required this.still,
     this.onReorder,
   });
 
-  final List<Playlist> playlists;
+  final List<T> items;
   final int columns;
   final double cell;
   final double gap;
-  final ValueChanged<Playlist> onOpen;
+
+  /// Stable identity of one item: the order the grid reports is a list of
+  /// these, and the catalogue keys its own models by them.
+  final String Function(T item) idOf;
+
+  /// The card at rest. Taps stay inside it, so the grid never has to know
+  /// what opening an item means.
+  final Widget Function(BuildContext context, T item) tile;
+
+  /// The card that rides the pointer while it is dragged, at cell width.
+  final Widget Function(T item, double side) still;
 
   /// Receives the order the grid was rearranged into. Null keeps the grid
   /// static: no lift, no preview, no settle.
   final ValueChanged<List<String>>? onReorder;
 
   @override
-  State<_PlaylistRowsSliver> createState() => _PlaylistRowsSliverState();
+  State<_ReorderableItemsSliver<T>> createState() =>
+      _ReorderableItemsSliverState<T>();
 }
 
-class _PlaylistRowsSliverState extends State<_PlaylistRowsSliver>
+class _ReorderableItemsSliverState<T> extends State<_ReorderableItemsSliver<T>>
     with TickerProviderStateMixin {
   /// One key per card, so the lift can measure the box it has to settle into.
   final Map<String, GlobalKey> _boxes = <String, GlobalKey>{};
@@ -415,7 +448,7 @@ class _PlaylistRowsSliverState extends State<_PlaylistRowsSliver>
   int? _pointer;
   Offset _pointerDown = Offset.zero;
   bool _pointerDragging = false;
-  Playlist? _pointerCard;
+  T? _pointerCard;
 
   /// Whether the card in the air was picked up by a long press. The long
   /// press recognizer reports a cancel the moment the arena drops it — which
@@ -431,7 +464,7 @@ class _PlaylistRowsSliverState extends State<_PlaylistRowsSliver>
   }
 
   @override
-  void didUpdateWidget(covariant _PlaylistRowsSliver oldWidget) {
+  void didUpdateWidget(covariant _ReorderableItemsSliver<T> oldWidget) {
     super.didUpdateWidget(oldWidget);
     // The catalogue has caught up with the drop: the preview is the committed
     // order now, so drop the extra layer without touching the pixels.
@@ -455,18 +488,18 @@ class _PlaylistRowsSliverState extends State<_PlaylistRowsSliver>
   /// Slots the committed order, which is what the grid falls back to when a
   /// drag is abandoned.
   List<String> get _committed => <String>[
-    for (final Playlist playlist in widget.playlists) playlist.id,
+    for (final T item in widget.items) widget.idOf(item),
   ];
 
   /// The order the rows are painted in: the preview while a card is in the
   /// air, the committed order otherwise.
-  List<Playlist> get _shown {
+  List<T> get _shown {
     final List<String>? preview = _preview;
-    if (preview == null) return widget.playlists;
-    final Map<String, Playlist> byId = <String, Playlist>{
-      for (final Playlist playlist in widget.playlists) playlist.id: playlist,
+    if (preview == null) return widget.items;
+    final Map<String, T> byId = <String, T>{
+      for (final T item in widget.items) widget.idOf(item): item,
     };
-    return <Playlist>[
+    return <T>[
       for (final String id in preview)
         if (byId[id] != null) byId[id]!,
     ];
@@ -509,7 +542,7 @@ class _PlaylistRowsSliverState extends State<_PlaylistRowsSliver>
   /// The rows are uniform enough to describe with arithmetic: a card's box is
   /// the cell wide, the row is as tall as its tallest card, and rows are 24
   /// apart — the same numbers the sliver lays out with.
-  Map<String, Offset> _slotTops(List<Playlist> shown) {
+  Map<String, Offset> _slotTops(List<T> shown) {
     final double fallback = widget.cell + 47;
     final Map<String, Offset> tops = <String, Offset>{};
     double y = 0;
@@ -517,10 +550,16 @@ class _PlaylistRowsSliverState extends State<_PlaylistRowsSliver>
       final int end = math.min(start + widget.columns, shown.length);
       double rowHeight = 0;
       for (int i = start; i < end; i++) {
-        rowHeight = math.max(rowHeight, _heights[shown[i].id] ?? fallback);
+        rowHeight = math.max(
+          rowHeight,
+          _heights[widget.idOf(shown[i])] ?? fallback,
+        );
       }
       for (int i = start; i < end; i++) {
-        tops[shown[i].id] = Offset((i - start) * (widget.cell + widget.gap), y);
+        tops[widget.idOf(shown[i])] = Offset(
+          (i - start) * (widget.cell + widget.gap),
+          y,
+        );
       }
       y += rowHeight + 24;
     }
@@ -528,7 +567,7 @@ class _PlaylistRowsSliverState extends State<_PlaylistRowsSliver>
   }
 
   /// The distance every card has to cover to get from [from] to [to].
-  Map<String, Offset> _travel(List<Playlist> from, List<Playlist> to) {
+  Map<String, Offset> _travel(List<T> from, List<T> to) {
     final Map<String, Offset> before = _slotTops(from);
     final Map<String, Offset> after = _slotTops(to);
     return <String, Offset>{
@@ -541,12 +580,12 @@ class _PlaylistRowsSliverState extends State<_PlaylistRowsSliver>
     };
   }
 
-  /// [ids] resolved against the playlists this grid is showing.
-  List<Playlist> _orderOf(List<String> ids) {
-    final Map<String, Playlist> byId = <String, Playlist>{
-      for (final Playlist playlist in widget.playlists) playlist.id: playlist,
+  /// [ids] resolved against the items this grid is showing.
+  List<T> _orderOf(List<String> ids) {
+    final Map<String, T> byId = <String, T>{
+      for (final T item in widget.items) widget.idOf(item): item,
     };
-    return <Playlist>[
+    return <T>[
       for (final String id in ids)
         if (byId[id] != null) byId[id]!,
     ];
@@ -584,7 +623,7 @@ class _PlaylistRowsSliverState extends State<_PlaylistRowsSliver>
     return null;
   }
 
-  void _pointerPressed(Playlist playlist, PointerDownEvent event) {
+  void _pointerPressed(T item, PointerDownEvent event) {
     if (event.kind != PointerDeviceKind.mouse &&
         event.kind != PointerDeviceKind.stylus) {
       return;
@@ -592,13 +631,13 @@ class _PlaylistRowsSliverState extends State<_PlaylistRowsSliver>
     _pointer = event.pointer;
     _pointerDown = event.position;
     _pointerDragging = false;
-    _pointerCard = playlist;
+    _pointerCard = item;
   }
 
   void _pointerMoved(PointerMoveEvent event) {
     if (event.pointer != _pointer) return;
-    final Playlist? playlist = _pointerCard;
-    if (playlist == null) return;
+    final T? item = _pointerCard;
+    if (item == null) return;
     if (!_pointerDragging) {
       if ((event.position - _pointerDown).distance < kTouchSlop) return;
       _pointerDragging = true;
@@ -606,7 +645,7 @@ class _PlaylistRowsSliverState extends State<_PlaylistRowsSliver>
       // has already left the pixel the card was grabbed at, and anchoring
       // there would trail the cursor by that distance for the whole drag.
       _startDrag(
-        playlist,
+        item,
         grabAt: _pointerDown,
         at: event.position,
         fromHold: false,
@@ -635,14 +674,14 @@ class _PlaylistRowsSliverState extends State<_PlaylistRowsSliver>
   }
 
   void _startDrag(
-    Playlist playlist, {
+    T item, {
     required Offset grabAt,
     required Offset at,
     required bool fromHold,
   }) {
     if (_dragging != null) return;
     _measureCards();
-    final Rect? box = _boxOf(playlist.id);
+    final Rect? box = _boxOf(widget.idOf(item));
     if (box == null) return;
     _grab = grabAt - box.topLeft;
     _heldByLongPress = fromHold;
@@ -651,7 +690,7 @@ class _PlaylistRowsSliverState extends State<_PlaylistRowsSliver>
     final AppState? app = InteractionFeedback.of(context);
     if (app != null) unawaited(app.feedback());
     setState(() {
-      _dragging = playlist.id;
+      _dragging = widget.idOf(item);
       _preview = null;
     });
     _flight.value = Rect.fromLTWH(
@@ -664,7 +703,7 @@ class _PlaylistRowsSliverState extends State<_PlaylistRowsSliver>
     _lift.forward(from: 0);
     final overlay = Overlay.of(context, rootOverlay: true);
     _proxy = OverlayEntry(
-      builder: (BuildContext context) => _flightLayer(playlist, overlay),
+      builder: (BuildContext context) => _flightLayer(item, overlay),
     );
     overlay.insert(_proxy!);
   }
@@ -731,7 +770,7 @@ class _PlaylistRowsSliverState extends State<_PlaylistRowsSliver>
   void _revertPreview() {
     final List<String>? preview = _preview;
     if (preview == null) return;
-    final Map<String, Offset> travel = _travel(_shown, widget.playlists);
+    final Map<String, Offset> travel = _travel(_shown, widget.items);
     setState(() => _preview = null);
     _slide(travel);
   }
@@ -797,55 +836,50 @@ class _PlaylistRowsSliverState extends State<_PlaylistRowsSliver>
   /// The card itself is built once and handed in as the builder's child: the
   /// overlay only rewrites a matrix and an opacity per frame, never the cover
   /// or the label.
-  Widget _flightLayer(Playlist playlist, OverlayState overlay) =>
-      AnimatedBuilder(
-        animation: Listenable.merge(<Listenable>[_flight, _lift, _settle]),
-        builder: (BuildContext context, Widget? child) {
-          final Rect? rect = _flight.value;
-          if (rect == null) return const SizedBox.shrink();
-          final overlayBox = overlay.context.findRenderObject()! as RenderBox;
-          final localRect = Rect.fromPoints(
-            overlayBox.globalToLocal(rect.topLeft),
-            overlayBox.globalToLocal(rect.bottomRight),
-          );
-          final double lift = _lift.value;
-          final double settle = _settle.value;
-          // Picking the card up grows it a hair on a spring; putting it down
-          // shrinks that growth away as it travels.
-          final double scale = settle > 0
-              ? 1.02 - .02 * const AppleSpringCurve().transform(settle)
-              : 1 + .025 * const AppleSpringCurve().transform(lift);
-          return Positioned.fromRect(
-            rect: localRect,
-            child: IgnorePointer(
-              child: Opacity(
-                opacity: 1,
-                child: Transform.scale(scale: scale, child: child),
-              ),
-            ),
-          );
-        },
-        child: _PlaylistDragStill(playlist: playlist, side: widget.cell),
+  Widget _flightLayer(T item, OverlayState overlay) => AnimatedBuilder(
+    animation: Listenable.merge(<Listenable>[_flight, _lift, _settle]),
+    builder: (BuildContext context, Widget? child) {
+      final Rect? rect = _flight.value;
+      if (rect == null) return const SizedBox.shrink();
+      final overlayBox = overlay.context.findRenderObject()! as RenderBox;
+      final localRect = Rect.fromPoints(
+        overlayBox.globalToLocal(rect.topLeft),
+        overlayBox.globalToLocal(rect.bottomRight),
       );
+      final double lift = _lift.value;
+      final double settle = _settle.value;
+      // Picking the card up grows it a hair on a spring; putting it down
+      // shrinks that growth away as it travels.
+      final double scale = settle > 0
+          ? 1.02 - .02 * const AppleSpringCurve().transform(settle)
+          : 1 + .025 * const AppleSpringCurve().transform(lift);
+      return Positioned.fromRect(
+        rect: localRect,
+        child: IgnorePointer(
+          child: Opacity(
+            opacity: 1,
+            child: Transform.scale(scale: scale, child: child),
+          ),
+        ),
+      );
+    },
+    child: widget.still(item, widget.cell),
+  );
 
-  Widget _cell(Playlist playlist) {
-    final GlobalKey box = _boxes.putIfAbsent(playlist.id, () => GlobalKey());
-    Widget card = AppPlaylistCard(
-      playlist: playlist,
-      width: widget.cell,
-      onTap: () => widget.onOpen(playlist),
-    );
+  Widget _cell(T item) {
+    final String id = widget.idOf(item);
+    final GlobalKey box = _boxes.putIfAbsent(id, () => GlobalKey());
+    Widget card = widget.tile(context, item);
     if (widget.onReorder != null) {
       card = Listener(
-        onPointerDown: (PointerDownEvent event) =>
-            _pointerPressed(playlist, event),
+        onPointerDown: (PointerDownEvent event) => _pointerPressed(item, event),
         onPointerMove: _pointerMoved,
         onPointerUp: _pointerReleased,
         onPointerCancel: (PointerCancelEvent event) => _pointerCancelled(),
         child: GestureDetector(
           behavior: HitTestBehavior.opaque,
           onLongPressStart: (LongPressStartDetails details) => _startDrag(
-            playlist,
+            item,
             grabAt: details.globalPosition,
             at: details.globalPosition,
             fromHold: true,
@@ -865,8 +899,8 @@ class _PlaylistRowsSliverState extends State<_PlaylistRowsSliver>
     }
     // In the air: a hollow placeholder marks the slot the card is about to
     // claim. Landing: the slot stays empty until the preview drops onto it.
-    final bool lifted = _dragging == playlist.id;
-    final bool landing = _landing == playlist.id;
+    final bool lifted = _dragging == id;
+    final bool landing = _landing == id;
     final Widget content = AnimatedOpacity(
       duration: MediaQuery.disableAnimationsOf(context)
           ? Duration.zero
@@ -886,22 +920,27 @@ class _PlaylistRowsSliverState extends State<_PlaylistRowsSliver>
     // rebuild the card's element — and drop the gesture recognizer — in the
     // middle of the very drag that asks for the slide. The builder keeps the
     // per-frame work down to one matrix per card.
-    return KeyedSubtree(
-      key: box,
-      child: AnimatedBuilder(
-        animation: _reflow,
-        builder: (BuildContext context, Widget? child) =>
-            Transform.translate(offset: _shiftOf(playlist.id), child: child),
-        child: content,
+    // The row hands its children an unbounded width, so every cell pins its
+    // own: the cards size themselves from the grid's cell width.
+    return SizedBox(
+      width: widget.cell,
+      child: KeyedSubtree(
+        key: box,
+        child: AnimatedBuilder(
+          animation: _reflow,
+          builder: (BuildContext context, Widget? child) =>
+              Transform.translate(offset: _shiftOf(id), child: child),
+          child: content,
+        ),
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final List<Playlist> shown = _shown;
+    final List<T> shown = _shown;
     _laidOutSlots = <String, int>{
-      for (int i = 0; i < shown.length; i++) shown[i].id: i,
+      for (int i = 0; i < shown.length; i++) widget.idOf(shown[i]): i,
     };
     final int columns = widget.columns;
     final int count = (shown.length + columns - 1) ~/ columns;
@@ -979,6 +1018,25 @@ class _PlaylistDragStill extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Applies the order the library albums were dragged into.
+///
+/// Same contract as [_arrangePlaylists]: the saved order nudges the catalogue
+/// instead of replacing it, so an album collected on another device still
+/// shows up behind the arranged ones and a removed one leaves no hole.
+List<Album> _arrangeAlbums(List<Album> albums, List<String> order) {
+  if (order.isEmpty || albums.length < 2) return albums;
+  final Map<String, int> rank = <String, int>{
+    for (int i = 0; i < order.length; i++) order[i]: i,
+  };
+  int next = order.length;
+  for (final Album album in albums) {
+    rank.putIfAbsent(album.id, () => next++);
+  }
+  final List<Album> arranged = <Album>[...albums];
+  arranged.sort((Album a, Album b) => rank[a.id]!.compareTo(rank[b.id]!));
+  return arranged;
 }
 
 /// Applies the order the library was dragged into.
@@ -1074,6 +1132,62 @@ Widget _playlistArrangementButton(BuildContext context, AppState state) =>
     );
 
 /// One collected album in the 资料库 grid.
+/// The still of an album card that rides the pointer while it is dragged.
+class _AlbumDragStill extends StatelessWidget {
+  const _AlbumDragStill({required this.album, required this.side});
+
+  final Album album;
+  final double side;
+
+  @override
+  Widget build(BuildContext context) {
+    final ThemeData theme = Theme.of(context);
+    final AppleSemanticColors apple = AppleSemanticColors.of(context);
+    return SizedBox(
+      key: const ValueKey('album-drag-preview'),
+      width: side,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          DecoratedBox(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(14),
+              boxShadow: <BoxShadow>[
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: .34),
+                  blurRadius: 30,
+                  spreadRadius: 2,
+                  offset: const Offset(0, 16),
+                ),
+              ],
+            ),
+            child: AppCover(url: album.coverUrl, size: side, radius: 14),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            album.title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: apple.label,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          Text(
+            album.artist,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: apple.secondaryLabel,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _AlbumCard extends StatelessWidget {
   const _AlbumCard({required this.album, required this.state});
 

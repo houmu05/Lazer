@@ -59,8 +59,8 @@ Measured on WSL Debian 13 with this SDK:
 - `flutter analyze --no-pub` prints `No issues found!` (0 issues).
 - `flutter test --no-pub` is green in about 4 minutes. Current CI baseline
   (2026-11-05, runs `41978492846` and `41978501274` on `master` and `nextgen`):
-  **1074 passed / 0 failed**, with 954 static `test()`/`testWidgets()` call
-  sites across 159 files. Earlier snapshots were 1056 at review time and 1065
+  **1082 passed / 0 failed**, with 962 static `test()`/`testWidgets()` call
+  sites across 159 files. Earlier snapshots were 1056 at review time, 1065 and 1074
   after the album work. See `docs/HANDOVER.md` section 3 for the history;
   trust a fresh local run over any number written here.
 

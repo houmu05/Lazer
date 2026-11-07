@@ -34,6 +34,7 @@
 
 - A real catalogue, search, recommended playlists, personal radar, accounts and favourites.
 - Artist pages with popular tracks and paged albums; album pages carry the description and the full track list — tap a name and you are there.
+- Collected albums in the library can be long-pressed and dragged into your own order (mouse drags directly on desktop), and 我喜欢的音乐 sorts by song title or artist.
 - Popular and latest comments with pagination, likes and unlikes. Guests can read; sign in to react.
 - System media controls on Windows, Linux and Android; the notification and lock screen carry the line being sung.
 

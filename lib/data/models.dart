@@ -442,3 +442,9 @@ class Album {
 }
 
 enum AlbumReleaseGroup { album, singleEp, unknown }
+
+/// How 我喜欢的音乐 orders its rows.
+///
+/// [recent] keeps the service's own order (newest liked first); the other two
+/// re-sort the loaded page and keep the service order for ties.
+enum LikedSortOrder { recent, title, artist }

@@ -40,7 +40,12 @@ class AppLikesPage extends StatelessWidget {
     if (liked == null) {
       return const Center(child: CircularProgressIndicator());
     }
-    return AppPlaylistPage(state: state, playlist: liked, embedded: true);
+    return AppPlaylistPage(
+      state: state,
+      playlist: liked,
+      embedded: true,
+      sortable: true,
+    );
   }
 }
 
@@ -52,11 +57,16 @@ class AppPlaylistPage extends StatefulWidget {
     required this.playlist,
     this.embedded = false,
     this.album,
+    this.sortable = false,
   });
 
   final AppState state;
   final Playlist playlist;
   final bool embedded;
+
+  /// Whether the rows can be re-ordered by title or artist. Only 我喜欢的音乐
+  /// asks for it: every other playlist has the order the service gave it.
+  final bool sortable;
 
   /// When set, the page loads album tracks instead of playlist tracks. The
   /// album still travels through [playlist] for the header and title, so both
@@ -73,6 +83,20 @@ class _AppPlaylistPageState extends State<AppPlaylistPage> {
   final ValueNotifier<bool> _showLocate = ValueNotifier<bool>(false);
   bool _refreshScheduled = false;
   List<Track>? _tracks;
+
+  /// The rows in the order the page paints them.
+  ///
+  /// The raw load keeps the service order (newest liked first); a sortable
+  /// page re-orders that list on the way out, so the header count, the rows,
+  /// the queue built from a tap and the locator all agree.
+  List<Track>? get _displayTracks {
+    final List<Track>? raw = _tracks;
+    if (raw == null || !widget.sortable) return raw;
+    return sortLikedTracks(raw, widget.state.likedSort);
+  }
+
+  /// Sort the row metrics were built for, so a change of order rebuilds them.
+  LikedSortOrder? _metricsSort;
   String? _note;
   String? _error;
   List<double>? _rowTops;
@@ -210,7 +234,11 @@ class _AppPlaylistPageState extends State<AppPlaylistPage> {
   }
 
   void _ensureRowMetrics() {
-    final List<Track>? tracks = _tracks;
+    if (widget.sortable && _metricsSort != widget.state.likedSort) {
+      _metricsDirty = true;
+      _metricsSort = widget.state.likedSort;
+    }
+    final List<Track>? tracks = _displayTracks;
     if (tracks == null) {
       _rowTops = null;
       _rowHeights = null;
@@ -280,7 +308,7 @@ class _AppPlaylistPageState extends State<AppPlaylistPage> {
   /// Show the locator only when the playing track belongs to this playlist
   /// and its row is currently outside the visible scroll range.
   bool _shouldShowLocate() {
-    final List<Track>? tracks = _tracks;
+    final List<Track>? tracks = _displayTracks;
     if (tracks == null || tracks.isEmpty || !_scroll.hasClients) return false;
     final int index = _currentIndex(tracks);
     if (index < 0) return false;
@@ -297,7 +325,7 @@ class _AppPlaylistPageState extends State<AppPlaylistPage> {
   }
 
   Future<void> _locateCurrent() async {
-    final List<Track>? tracks = _tracks;
+    final List<Track>? tracks = _displayTracks;
     if (tracks == null || tracks.isEmpty || !_scroll.hasClients) return;
     final int index = _currentIndex(tracks);
     if (index < 0) {
@@ -351,7 +379,7 @@ class _AppPlaylistPageState extends State<AppPlaylistPage> {
 
   @override
   Widget build(BuildContext context) {
-    final List<Track>? tracks = _tracks;
+    final List<Track>? tracks = _displayTracks;
     final double inset = pageInset(context);
     final bool compact = MediaQuery.sizeOf(context).width < 680;
     return Center(
@@ -415,6 +443,33 @@ class _AppPlaylistPageState extends State<AppPlaylistPage> {
                           AppSectionHeader(
                             title: '歌曲',
                             subtitle: '${tracks.length} 首',
+                            trailing: widget.sortable
+                                ? PopupMenuButton<LikedSortOrder>(
+                                    tooltip: context.tr('排序方式'),
+                                    initialValue: widget.state.likedSort,
+                                    icon: const Icon(
+                                      Icons.sort_rounded,
+                                      size: 20,
+                                    ),
+                                    onSelected: (LikedSortOrder value) =>
+                                        unawaited(
+                                          widget.state.setLikedSort(value),
+                                        ),
+                                    itemBuilder: (BuildContext context) =>
+                                        <PopupMenuEntry<LikedSortOrder>>[
+                                          for (final LikedSortOrder value
+                                              in LikedSortOrder.values)
+                                            PopupMenuItem<LikedSortOrder>(
+                                              value: value,
+                                              child: Text(
+                                                context.tr(
+                                                  _likedSortLabel(value),
+                                                ),
+                                              ),
+                                            ),
+                                        ],
+                                  )
+                                : null,
                           ),
                         const SizedBox(height: 6),
                       ],
@@ -734,4 +789,38 @@ class AppPlaylistHeader extends StatelessWidget {
       ],
     );
   }
+}
+
+String _likedSortLabel(LikedSortOrder order) => switch (order) {
+  LikedSortOrder.recent => '默认顺序',
+  LikedSortOrder.title => '歌曲名称',
+  LikedSortOrder.artist => '歌手名称',
+};
+
+/// Orders the liked rows, keeping the service order for ties so the list does
+/// not reshuffle between rebuilds.
+List<Track> sortLikedTracks(List<Track> tracks, LikedSortOrder order) {
+  if (order == LikedSortOrder.recent || tracks.length < 2) return tracks;
+  int compareText(String a, String b) =>
+      a.toLowerCase().compareTo(b.toLowerCase());
+  final Map<String, int> original = <String, int>{
+    for (int i = 0; i < tracks.length; i++) tracks[i].id: i,
+  };
+  final List<Track> sorted = List<Track>.of(tracks);
+  sorted.sort((Track a, Track b) {
+    final int primary = switch (order) {
+      LikedSortOrder.title => compareText(a.title, b.title),
+      LikedSortOrder.artist => compareText(a.artist, b.artist),
+      LikedSortOrder.recent => 0,
+    };
+    if (primary != 0) return primary;
+    final int secondary = switch (order) {
+      LikedSortOrder.title => compareText(a.artist, b.artist),
+      LikedSortOrder.artist => compareText(a.title, b.title),
+      LikedSortOrder.recent => 0,
+    };
+    if (secondary != 0) return secondary;
+    return (original[a.id] ?? 0).compareTo(original[b.id] ?? 0);
+  });
+  return sorted;
 }

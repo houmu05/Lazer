@@ -630,6 +630,44 @@ class AppState extends ChangeNotifier with BuildSafeNotifier {
     await _playlistOrderWriter.request();
   }
 
+  /// The listener's own order for the collected albums, as album ids.
+  ///
+  /// Same contract as [playlistOrder]: ids the list does not mention keep
+  /// their catalogue order behind the arranged ones.
+  List<String> albumOrder = const <String>[];
+  late final CoalescingWriter _albumOrderWriter = CoalescingWriter(() async {
+    final snapshot = albumOrder.join('\n');
+    await (await SharedPreferences.getInstance()).setString(
+      'lazer_album_order',
+      snapshot,
+    );
+  });
+
+  /// How 我喜欢的音乐 orders its rows (service order, title or artist).
+  LikedSortOrder likedSort = LikedSortOrder.recent;
+
+  Future<void> setLikedSort(LikedSortOrder order) async {
+    if (likedSort == order) return;
+    likedSort = order;
+    notifyListeners();
+    await (await SharedPreferences.getInstance()).setString(
+      'lazer_liked_sort',
+      order.name,
+    );
+  }
+
+  /// Stores the order the collected albums were dragged into.
+  Future<void> setAlbumOrder(List<String> order) async {
+    final List<String> next = List<String>.unmodifiable(<String>{
+      for (final String id in order)
+        if (id.isNotEmpty) id,
+    });
+    if (listEquals(albumOrder, next)) return;
+    albumOrder = next;
+    notifyListeners();
+    await _albumOrderWriter.request();
+  }
+
   /// App shell backdrop: the album-coloured flowing canvas, the listener's
   /// own picture, or off.
   AppBackgroundMode backgroundMode = AppBackgroundMode.nowPlayingDynamic;
@@ -1345,7 +1383,10 @@ class AppState extends ChangeNotifier with BuildSafeNotifier {
   ///
   /// [more] appends the next page instead of replacing the list, [force]
   /// bypasses the catalogue cache.
-  Future<void> loadLibraryAlbums({bool more = false, bool force = false}) async {
+  Future<void> loadLibraryAlbums({
+    bool more = false,
+    bool force = false,
+  }) async {
     if (_presentationDisposed || libraryAlbumsLoading) return;
     final int uid = _user.userId;
     if (uid <= 0) return;
@@ -1513,6 +1554,16 @@ class AppState extends ChangeNotifier with BuildSafeNotifier {
             in (prefs.getString('lazer_playlist_order') ?? '').split('\n'))
           if (id.isNotEmpty) id,
       ]);
+      albumOrder = List<String>.unmodifiable(<String>[
+        for (final String id
+            in (prefs.getString('lazer_album_order') ?? '').split('\n'))
+          if (id.isNotEmpty) id,
+      ]);
+      final String? storedLikedSort = prefs.getString('lazer_liked_sort');
+      likedSort = LikedSortOrder.values.firstWhere(
+        (LikedSortOrder value) => value.name == storedLikedSort,
+        orElse: () => LikedSortOrder.recent,
+      );
       final String? storedSurface = prefs.getString('lazer_surface');
       surface = AppSurfaceLabels.parse(storedSurface);
       if (deviceIsTelevision && storedSurface == null) {

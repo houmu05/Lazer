@@ -4,7 +4,7 @@
 缺陷与风险见 `KNOWN-ISSUES.md`，状态与命令见 `docs/HANDOVER.md`。
 2026-11-05 更新：§0 已由用户实测通过；§2 的全量构建与正式签名已完成；
 版本口径已定为 `0.1.x` 并实施（§1 首条已勾选），分支改为 `master` 正式主线 +
-`nextgen` 预览；收藏专辑长按排序仍待做（§1 第二条）。
+`nextgen` 预览；§1 的收藏专辑拖动排序与喜欢排序已于 2026-11-07 完成。
 
 ## 0. 已完成验证（2026-11-04，用户侧）
 
@@ -25,16 +25,17 @@
       后续 `v0.1.1` 能正常提示升级。
       **后续发版纪律**：tag 去掉 `v` 后等于 pubspec 版本名、`+N` 只增不减、同步
       `BuildInfo` 兜底值；正式 tag 从 `master` 打（不带 `-`），beta tag 从 `nextgen` 打（带 `-`）。
-- [ ] **收藏专辑长按拖动排序（与歌单一致）**：
-      复用 `lib/ui/library_page.dart:331` 的 `_PlaylistRowsSliver`（当前绑定 `Playlist`，
-      需抽成「id + builder」的通用网格），替换 `:231-248` 的 `SliverGrid.builder`；
-      在 `AppState` 加 `albumOrder` / `setAlbumOrder`（参照 `:612-632` 的 `playlistOrder`，
-      持久化键建议 `lazer_album_order`），渲染前按 id 排列，未记录的专辑保持服务端顺序在后。
-      **注意分页**：`:1352-1370` 的 `loadLibraryAlbums(more: true)` 追加新页、
-      `:1912` 在会话变化时清空列表，两者都不得冲掉用户顺序；排序只作用于已加载的专辑。
-      验收：长按/鼠标拖拽能预览并落位，点按仍打开专辑详情；刷新与「加载更多」后顺序保持；
-      重启后仍在；「专辑」区块标题补 `长按拖动排序` 副文案；
-      参照 `test/library_arrangement_test.dart` 补拖拽、持久化、未知 id 三类回归。
+- [x] **收藏专辑长按拖动排序（与歌单一致，2026-11-07 完成）**：
+      `_PlaylistRowsSliver` 已抽成通用网格 `_ReorderableItemsSliver<T>`（id + tile + still +
+      onReorder），歌单与专辑共用同一套长按/鼠标拖拽、预览、回弹；专辑网格替换了原来的
+      `SliverGrid.builder`。`AppState` 新增 `albumOrder` / `setAlbumOrder`（持久化
+      `lazer_album_order`），未记录的专辑保持服务端顺序在后；分页加载与会话清空不冲掉顺序。
+      标题副文案「长按拖动排序」；回归：`test/library_album_order_test.dart`（拖拽写入偏好、
+      排序生效、未知 id 靠后、重启加载）。
+- [x] **「我喜欢的音乐」按歌曲名称/歌手名称排序（2026-11-07 完成）**：
+      喜欢页头部新增排序菜单（默认顺序 / 歌曲名称 / 歌手名称），排序同时作用于行、头部
+      播放/下载、定位与点按生成的队列；平局回退服务端顺序，避免每次重建乱序。
+      持久化 `lazer_liked_sort`，回归：`test/liked_sort_test.dart`。
 - [ ] **「已购专辑」**：官方客户端在「我的收藏 → 专辑」下有 `收藏专辑 / 已购专辑` 两个 tab。
       目前只做了收藏。先实测接口（很可能仍是 `/album/sublist` 的 `paidCount`/`paid` 变体，
       未确认，禁止猜字段），再在 `lib/data/catalog.dart` + `lib/ui/library_page.dart` 加第二个 tab。
